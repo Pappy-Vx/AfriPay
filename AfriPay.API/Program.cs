@@ -1,4 +1,14 @@
+using AfriPay.DAL.Data;
+using Microsoft.EntityFrameworkCore;
+
 var builder = WebApplication.CreateBuilder(args);
+
+//---------------------------------------------
+// 2 Configure Database Context
+//---------------------------------------------
+
+builder.Services.AddDbContext<AfriPayDbContext>(options => options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+
 
 // Add services to the container.
 
