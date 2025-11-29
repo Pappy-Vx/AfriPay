@@ -11,4 +11,9 @@
     <ProjectReference Include="..\AfriPay.CORE\AfriPay.CORE.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Data\" />
+    <Folder Include="Repositories\" />
+  </ItemGroup>
+
 </Project>
