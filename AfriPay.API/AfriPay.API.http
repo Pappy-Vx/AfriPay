@@ -1,0 +1,6 @@
+@AfriPay.API_HostAddress = http://localhost:5231
+
+GET {{AfriPay.API_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

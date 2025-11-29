@@ -6,4 +6,9 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\AfriPay.APP\AfriPay.APP.csproj" />
+    <ProjectReference Include="..\AfriPay.CORE\AfriPay.CORE.csproj" />
+  </ItemGroup>
+
 </Project>

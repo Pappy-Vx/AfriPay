@@ -1,3 +1,6 @@
 <Solution>
-  <Project Path="AfriPay/AfriPay.csproj" />
+  <Project Path="AfriPay.API/AfriPay.API.csproj" />
+  <Project Path="AfriPay.APP/AfriPay.APP.csproj" />
+  <Project Path="AfriPay.CORE/AfriPay.CORE.csproj" />
+  <Project Path="AfriPay.DAL/AfriPay.DAL.csproj" />
 </Solution>
