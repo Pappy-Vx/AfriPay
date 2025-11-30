@@ -16,20 +16,30 @@ namespace AfriPay.DAL.Configurations
         {
             builder.ToTable("Customers");
 
+            // Primary key configuration
             builder.HasKey(c => c.CustomerId);
 
             builder.Property(c => c.CustomerId)
                 .HasConversion(
                     id => id.Value,
                     value => CustomerId.Create(value))
+                .ValueGeneratedNever()
                 .IsRequired();
 
+            //builder.Property(c => c.CustomerReference)
+            //    .HasConversion(
+            //        cr => cr.Value,
+            //        value => CustomerReference.Create(value))
+            //    .HasMaxLength(50)
+            //    .IsRequired();
+
             builder.Property(c => c.CustomerReference)
-                .HasConversion(
-                    cr => cr.Value,
-                    value => CustomerReference.Create(value))
-                .HasMaxLength(50)
-                .IsRequired();
+.HasConversion(
+cr => cr.Value,
+value => CustomerReference.Create(value))
+.HasColumnName("CustomerReference")
+.HasMaxLength(50)
+.IsRequired();
 
             builder.Property(c => c.FirstName)
                 .HasMaxLength(100)
@@ -47,12 +57,23 @@ namespace AfriPay.DAL.Configurations
                 .HasMaxLength(20)
                 .IsRequired();
 
+            // Fixed BVN conversion with proper column name
             builder.Property(c => c.BVN)
-                .HasConversion(
-                    bvn => bvn.Value,
-                    value => BVN.Create(value))
-                .HasMaxLength(11)
-                .IsRequired();
+.HasConversion(
+bvn => bvn.Value,
+value => BVN.Create(value))
+.HasColumnName("BVN")
+.HasMaxLength(11)
+.IsRequired();
+
+            //builder.Property(c => c.BVN)
+            //    .HasColumnName("BVN")
+            //    .HasConversion(
+            //        bvn => bvn.Value,
+            //        value => BVN.Create(value))
+            //    .HasMaxLength(11)
+            //    .IsRequired();
+
 
             builder.Property(c => c.IsBvnVerified)
                 .IsRequired();
@@ -65,22 +86,24 @@ namespace AfriPay.DAL.Configurations
 
             // Indexes
             builder.HasIndex(c => c.Email).IsUnique();
-            builder.HasIndex(c => c.BVN).IsUnique();
-            builder.HasIndex(c => c.CustomerReference).IsUnique();
+            builder.HasIndex("BVN").IsUnique();
+            builder.HasIndex("CustomerReference").IsUnique();
 
-            // Relationships
+            // Relationships - use shadow properties for foreign keys
             builder.HasMany(c => c.Accounts)
                 .WithOne(a => a.Customer)
-                .HasForeignKey(a => a.CustomerId)
+                .HasForeignKey("CustomerId")
                 .OnDelete(DeleteBehavior.Restrict);
 
             builder.HasMany(c => c.OnboardingRequests)
                 .WithOne(o => o.Customer)
-                .HasForeignKey(o => o.CustomerId)
+                .HasForeignKey("CustomerId")
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Ignore domain events
+            // Ignore domain events and Id property from base class
             builder.Ignore(c => c.DomainEvents);
+            builder.Ignore(c => c.Id);
         }
     }
+
 }

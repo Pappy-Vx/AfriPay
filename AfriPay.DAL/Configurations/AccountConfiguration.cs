@@ -25,10 +25,14 @@ namespace AfriPay.DAL.Configurations
                     value => AccountId.Create(value))
                 .IsRequired();
 
+
+
+            // Configure AccountNumber as owned type (Value Object)
             builder.Property(a => a.AccountNumber)
                 .HasConversion(
-                    an => an.Value,
+                    accountNumber => accountNumber.Value,
                     value => AccountNumber.Create(value))
+                .HasColumnName("AccountNumber")
                 .HasMaxLength(10)
                 .IsRequired();
 
