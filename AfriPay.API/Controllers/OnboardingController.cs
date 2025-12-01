@@ -1,21 +1,26 @@
-﻿using AfriPay.APP.DTOs;
-using AfriPay.APP.Services;
+﻿using AfriPay.APP.Onboarding.Commands.StartOnboarding;
+using AfriPay.APP.Onboarding.Queries.GetOnboardingStatus;
+using MediatR;
 using Microsoft.AspNetCore.Mvc;
 
 namespace AfriPay.API.Controllers
 {
+    /// <summary>
+    /// Controller for managing customer onboarding
+    /// </summary>
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/v{version:apiVersion}/[controller]")]
+    [ApiVersion("1.0")]
     public class OnboardingController : ControllerBase
     {
-        private readonly IOnboardingService _onboardingService;
+        private readonly IMediator _mediator;
         private readonly ILogger<OnboardingController> _logger;
 
         public OnboardingController(
-            IOnboardingService onboardingService,
+            IMediator mediator,
             ILogger<OnboardingController> logger)
         {
-            _onboardingService = onboardingService ?? throw new ArgumentNullException(nameof(onboardingService));
+            _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
@@ -26,44 +31,27 @@ namespace AfriPay.API.Controllers
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Onboarding response with request reference</returns>
         [HttpPost("start")]
-        [ProducesResponseType(typeof(OnboardingResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(StartOnboardingResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> StartOnboarding(
-            [FromBody] OnboardingStartRequest request,
+            [FromBody] StartOnboardingCommand request,
             CancellationToken cancellationToken)
         {
-            try
+            var result = await _mediator.Send(request, cancellationToken);
+
+            if (result.IsFailure)
             {
-                if (!ModelState.IsValid)
+                return BadRequest(new ProblemDetails
                 {
-                    return BadRequest(ModelState);
-                }
-
-                var result = await _onboardingService.StartOnboardingAsync(request, cancellationToken);
-
-                if (result.IsFailure)
-                {
-                    return BadRequest(new ProblemDetails
-                    {
-                        Title = "Onboarding Failed",
-                        Detail = result.Error,
-                        Status = StatusCodes.Status400BadRequest
-                    });
-                }
-
-                return Ok(result.Value);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Error processing onboarding request");
-                return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
-                {
-                    Title = "Internal Server Error",
-                    Detail = "An error occurred while processing your request",
-                    Status = StatusCodes.Status500InternalServerError
+                    Title = "Onboarding Failed",
+                    Detail = result.Error,
+                    Status = StatusCodes.Status400BadRequest,
+                    Instance = HttpContext.Request.Path
                 });
             }
+
+            return Ok(result.Value);
         }
 
         /// <summary>
@@ -73,39 +61,28 @@ namespace AfriPay.API.Controllers
         /// <param name="cancellationToken">Cancellation token</param>
         /// <returns>Onboarding status details</returns>
         [HttpGet("{onboardingId:guid}/status")]
-        [ProducesResponseType(typeof(OnboardingResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(OnboardingStatusResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetOnboardingStatus(
             Guid onboardingId,
             CancellationToken cancellationToken)
         {
-            try
-            {
-                var result = await _onboardingService.GetOnboardingStatusAsync(onboardingId, cancellationToken);
+            var query = new GetOnboardingStatusQuery { OnboardingId = onboardingId };
+            var result = await _mediator.Send(query, cancellationToken);
 
-                if (result.IsFailure)
-                {
-                    return NotFound(new ProblemDetails
-                    {
-                        Title = "Onboarding Not Found",
-                        Detail = result.Error,
-                        Status = StatusCodes.Status404NotFound
-                    });
-                }
-
-                return Ok(result.Value);
-            }
-            catch (Exception ex)
+            if (result.IsFailure)
             {
-                _logger.LogError(ex, "Error retrieving onboarding status for {OnboardingId}", onboardingId);
-                return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails
+                return NotFound(new ProblemDetails
                 {
-                    Title = "Internal Server Error",
-                    Detail = "An error occurred while processing your request",
-                    Status = StatusCodes.Status500InternalServerError
+                    Title = "Onboarding Not Found",
+                    Detail = result.Error,
+                    Status = StatusCodes.Status404NotFound,
+                    Instance = HttpContext.Request.Path
                 });
             }
+
+            return Ok(result.Value);
         }
     }
 

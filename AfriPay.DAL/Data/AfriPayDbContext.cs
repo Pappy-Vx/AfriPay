@@ -1,4 +1,5 @@
 ﻿using AfriPay.CORE.Entities;
+using AfriPay.CORE.Interfaces;
 using AfriPay.CORE.ValueObjects;
 using AfriPay.DAL.Configurations;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace AfriPay.DAL.Data
 {
-    public class AfriPayDbContext : DbContext
+    public class AfriPayDbContext : DbContext, IApplicationDbContext
     {
         public AfriPayDbContext(DbContextOptions<AfriPayDbContext> options) : base(options)
         {
