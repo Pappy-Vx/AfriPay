@@ -39,7 +39,7 @@ namespace AfriPay.APP.Onboarding.Commands.StartOnboarding
                 request.PhoneNumber);
 
             // Check for duplicate
-            var exists = await _repository.ExistsAsync(
+            var exists = await _repository.ExistsByEmailOrPhoneAsync(
                 request.Email,
                 request.PhoneNumber,
                 cancellationToken);

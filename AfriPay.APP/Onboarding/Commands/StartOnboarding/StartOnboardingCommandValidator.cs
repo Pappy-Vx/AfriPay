@@ -23,7 +23,7 @@ namespace AfriPay.APP.Onboarding.Commands.StartOnboarding
 
             RuleFor(x => x.PhoneNumber)
                 .NotEmpty().WithMessage("Phone number is required")
-                .Matches(@"^\d{10,15}$").WithMessage("Invalid phone number format");
+                .Matches(@"^\+?\d{10,15}$").WithMessage("Invalid phone number format");
 
             RuleFor(x => x.DateOfBirth)
                 .NotEmpty()

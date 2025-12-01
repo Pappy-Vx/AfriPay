@@ -74,8 +74,8 @@ namespace AfriPay.CORE.ValueObjects
                 return Country switch
                 {
                     "NG" => new BvnNumber(Value),
-                    //"GH" => new GhanaCard(Value),  // Assuming GhanaCard ctor takes value
-                    //"KE" => new KenyaNationalId(Value),  // Assuming similar
+                    "GH" => new GhanaCard(Value),  // Assuming GhanaCard ctor takes value
+                    "KE" => new KenyaNationalID(Value),  // Assuming similar
                                                          // Add cases for other derived types
                     _ => this
                 };

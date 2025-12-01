@@ -46,15 +46,15 @@ namespace AfriPay.DAL.Data
             modelBuilder.Ignore<CustomerId>();
             modelBuilder.Ignore<AccountNumber>();
             modelBuilder.Ignore<CustomerReference>();
-            modelBuilder.Ignore<Money>();
+            //modelBuilder.Ignore<Money>();
             modelBuilder.Ignore<PersonalInfo>();
-            modelBuilder.Ignore<ContactInfo>();
-            modelBuilder.Ignore<Address>();
+            //modelBuilder.Ignore<ContactInfo>();
+            //modelBuilder.Ignore<Address>();
             modelBuilder.Ignore<PrimaryAccountInfo>();
-            modelBuilder.Ignore<BVN>();
-            modelBuilder.Ignore<GhanaCard>();
-            modelBuilder.Ignore<GhanaCardNumber>(); // Added if this variant exists; remove if merged
-            modelBuilder.Ignore<KenyaNationalID>();
+            //modelBuilder.Ignore<BVN>();
+            //modelBuilder.Ignore<GhanaCard>();
+            //modelBuilder.Ignore<GhanaCardNumber>(); // Added if this variant exists; remove if merged
+            //modelBuilder.Ignore<KenyaNationalID>();
         }
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

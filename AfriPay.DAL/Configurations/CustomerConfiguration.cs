@@ -49,13 +49,51 @@ value => CustomerReference.Create(value))
                 .HasMaxLength(100)
                 .IsRequired();
 
-            builder.Property(c => c.Email)
-                .HasMaxLength(200)
-                .IsRequired();
+            // Option A: If you have ContactInfo as a value object, configure it as owned
+            builder.OwnsOne(c => c.ContactInfo, ci =>
+            {
+                ci.Property(x => x.Email)
+                    .HasColumnName("Email")
+                    .HasMaxLength(200)
+                    .IsRequired();
 
-            builder.Property(c => c.PhoneNumber)
-                .HasMaxLength(20)
-                .IsRequired();
+                ci.Property(x => x.PhoneNumber)
+                    .HasColumnName("PhoneNumber")
+                    .HasMaxLength(20)
+                    .IsRequired();
+            });
+
+            // Configure Address as owned entity
+            builder.OwnsOne(c => c.Address, addr =>
+            {
+                addr.Property(a => a.Street)
+                    .HasColumnName("AddressStreet")
+                    .HasMaxLength(200)
+                    .IsRequired();
+
+                addr.Property(a => a.City)
+                    .HasColumnName("AddressCity")
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                addr.Property(a => a.State)
+                    .HasColumnName("AddressState")
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                addr.Property(a => a.Country)
+                    .HasColumnName("AddressCountry")
+                    .HasMaxLength(3)
+                    .IsRequired();
+
+                addr.Property(a => a.PostalCode)
+                    .HasColumnName("AddressPostalCode")
+                    .HasMaxLength(20);
+
+                // Ignore the computed FullAddress property
+                addr.Ignore(a => a.FullAddress);
+            });
+
 
             // Fixed BVN conversion with proper column name
             builder.Property(c => c.BVN)

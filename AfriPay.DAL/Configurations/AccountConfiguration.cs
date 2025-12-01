@@ -54,6 +54,20 @@ namespace AfriPay.DAL.Configurations
                     .IsRequired();
             });
 
+            // Configure ReservedBalance as owned entity (THIS WAS MISSING!)
+            builder.OwnsOne(a => a.ReservedBalance, money =>
+            {
+                money.Property(m => m.Amount)
+                    .HasColumnName("ReservedBalanceAmount")
+                    .HasPrecision(18, 2)
+                    .IsRequired();
+
+                money.Property(m => m.Currency)
+                    .HasColumnName("ReservedBalanceCurrency")
+                    .HasMaxLength(3)
+                    .IsRequired();
+            });
+
             builder.Property(a => a.CustomerId)
                 .HasConversion(
                     id => id.Value,
