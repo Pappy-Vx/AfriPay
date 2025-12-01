@@ -45,9 +45,15 @@ namespace AfriPay.APP.EventHandlers
                 request.MarkBvnVerificationPending();
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                // Call BVN verification service
+                // Call BVN verification service (only if it's a BVN)
+                if (@event.IdentityNumber is not AfriPay.CORE.ValueObjects.BVN bvn)
+                {
+                    _logger.LogInformation("Skipping BVN verification - identity type is {IdentityType}", @event.IdentityNumber.GetType().Name);
+                    return;
+                }
+
                 var verificationResult = await _bvnService.VerifyBvnAsync(
-                    @event.BVN.Value,
+                    bvn.Value,
                     @event.FirstName,
                     @event.LastName,
                     cancellationToken

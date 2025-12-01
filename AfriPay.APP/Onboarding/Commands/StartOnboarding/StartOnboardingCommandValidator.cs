@@ -11,27 +11,39 @@ namespace AfriPay.APP.Onboarding.Commands.StartOnboarding
         {
             RuleFor(x => x.FirstName)
                 .NotEmpty().WithMessage("First name is required")
-                .MaximumLength(100).WithMessage("First name must not exceed 100 characters")
-                .Matches(@"^[a-zA-Z\s'-]+$").WithMessage("First name contains invalid characters");
+                .MaximumLength(100);
 
             RuleFor(x => x.LastName)
                 .NotEmpty().WithMessage("Last name is required")
-                .MaximumLength(100).WithMessage("Last name must not exceed 100 characters")
-                .Matches(@"^[a-zA-Z\s'-]+$").WithMessage("Last name contains invalid characters");
+                .MaximumLength(100);
 
             RuleFor(x => x.Email)
                 .NotEmpty().WithMessage("Email is required")
-                .EmailAddress().WithMessage("Invalid email format")
-                .MaximumLength(255).WithMessage("Email must not exceed 255 characters");
+                .EmailAddress().WithMessage("Invalid email format");
 
             RuleFor(x => x.PhoneNumber)
                 .NotEmpty().WithMessage("Phone number is required")
-                .Matches(@"^\+?[1-9]\d{1,14}$").WithMessage("Invalid phone number format");
+                .Matches(@"^\d{10,15}$").WithMessage("Invalid phone number format");
 
-            RuleFor(x => x.BVN)
-                .NotEmpty().WithMessage("BVN is required")
-                .Length(11).WithMessage("BVN must be exactly 11 digits")
-                .Matches(@"^\d{11}$").WithMessage("BVN must contain only digits");
+            RuleFor(x => x.DateOfBirth)
+                .NotEmpty()
+                .LessThan(DateTime.UtcNow.AddYears(-18))
+                .WithMessage("Must be at least 18 years old");
+
+            RuleFor(x => x.IdentityNumber)
+                .NotEmpty().WithMessage("Identity number is required");
+
+            RuleFor(x => x.SelfieUrl)
+                .NotEmpty().WithMessage("Selfie is required")
+                .Must(BeValidUrl).WithMessage("Invalid selfie URL");
+
+            RuleFor(x => x.ConsentGiven)
+                .Equal(true).WithMessage("Consent is required");
+        }
+
+        private bool BeValidUrl(string url)
+        {
+            return Uri.TryCreate(url, UriKind.Absolute, out _);
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,44 +6,27 @@ using System.Threading.Tasks;
 
 namespace AfriPay.CORE.ValueObjects
 {
-    //public record BVN
-    //{
-    //    public string Value { get;}
-
-    //    private BVN() { }
-    //    private BVN(string value)
-    //    {
-    //        if (string.IsNullOrWhiteSpace(value))
-    //            throw new ArgumentException("BVN cannot be empty", nameof(value));
-
-    //        if (value.Length != 11)
-    //            throw new ArgumentException("BVN must be 11 digits", nameof(value));
-
-    //        if (!value.All(char.IsDigit))
-    //            throw new ArgumentException("BVN must contain only digits", nameof(value));
-
-    //        Value = value;
-    //    }
-
-    //    public static BVN Create(string value) => new(value);
-    //    public override string ToString() => Value;
-    //}
-    public record BVN
+    /// <summary>
+    /// Bank Verification Number (BVN) for Nigeria
+    /// </summary>
+    public class BVN : IdentityNumber
     {
-        public string Value { get; }
-        public BVN(string value)
+        private BVN() : base() { } // EF Core
+
+        private BVN(string value) : base(value, "NG")
         {
-            if (string.IsNullOrWhiteSpace(value) || value.Length != 11)
-                throw new ArgumentException("BVN must be 11 digits");
-            if (!value.All(char.IsDigit))
-                throw new ArgumentException("BVN must contain only digits");
-            Value = value;
+            Validate();
         }
-        // EF Core needs this
-        private BVN() : this(string.Empty) { }
+
         public static BVN Create(string value) => new(value);
-        public static implicit operator string(BVN number) => number.Value;
-        public static explicit operator BVN(string value) => new(value);
-        public override string ToString() => Value;
+
+        protected override void Validate()
+        {
+            if (Value.Length != 11)
+                throw new ArgumentException("BVN must be 11 digits", nameof(Value));
+
+            if (!Value.All(char.IsDigit))
+                throw new ArgumentException("BVN must contain only digits", nameof(Value));
+        }
     }
 }

@@ -14,40 +14,87 @@ namespace AfriPay.CORE.Entities
     {
         public Guid OnboardingId { get; private set; }
         public string RequestReference { get; private set; }
-        public string FirstName { get; private set; }
-        public string LastName { get; private set; }
-        public string Email { get; private set; }
-        public string PhoneNumber { get; private set; }
-        public BVN BVN { get; private set; }
+
+        // Personal Information
+        public PersonalInfo PersonalInfo { get; private set; }
+        public string FirstName => PersonalInfo.FirstName;
+        public string LastName => PersonalInfo.LastName;
+        public string? MiddleName => PersonalInfo.MiddleName;
+        public DateTime DateOfBirth => PersonalInfo.DateOfBirth;
+
+        // Contact Information
+        public ContactInfo ContactInfo { get; private set; }
+        public string Email => ContactInfo.Email;
+        public string PhoneNumber => ContactInfo.PhoneNumber;
+
+        // Identity
+        public IdentityNumber IdentityNumber { get; private set; }
+        public Country Country { get; private set; }
+        public string SelfieUrl { get; private set; }
+
         public OnboardingStatus Status { get; private set; }
         public CustomerId? CustomerId { get; private set; }
         public Customer? Customer { get; private set; }
         public AccountId? VirtualAccountId { get; private set; }
         public Account? VirtualAccount { get; private set; }
-        public DateTime RequestedAt { get; private set; }
+        public DateTime CreatedAt { get; private set; }
         public DateTime? CompletedAt { get; private set; }
         public string? FailureReason { get; private set; }
+
+        // Legacy support - keep for backward compatibility
+        public BVN? BVN => IdentityNumber is BVN bvn ? bvn : null;
+        public DateTime RequestedAt => CreatedAt;
 
         private OnboardingRequest() { } // EF Core
 
         private OnboardingRequest(
-            string firstName,
-            string lastName,
-            string email,
-            string phoneNumber,
-            BVN bvn)
+            PersonalInfo personalInfo,
+            ContactInfo contactInfo,
+            IdentityNumber identityNumber,
+            Country country,
+            string selfieUrl)
         {
             OnboardingId = Guid.NewGuid();
             RequestReference = $"ONB-{OnboardingId:N}".ToUpper();
-            FirstName = firstName;
-            LastName = lastName;
-            Email = email;
-            PhoneNumber = phoneNumber;
-            BVN = bvn;
+            PersonalInfo = personalInfo ?? throw new ArgumentNullException(nameof(personalInfo));
+            ContactInfo = contactInfo ?? throw new ArgumentNullException(nameof(contactInfo));
+            IdentityNumber = identityNumber ?? throw new ArgumentNullException(nameof(identityNumber));
+            Country = country;
+            SelfieUrl = selfieUrl ?? throw new ArgumentNullException(nameof(selfieUrl));
             Status = OnboardingStatus.Initiated;
-            RequestedAt = DateTime.UtcNow;
+            CreatedAt = DateTime.UtcNow;
         }
 
+        public static OnboardingRequest Create(
+            PersonalInfo personalInfo,
+            ContactInfo contactInfo,
+            IdentityNumber identityNumber,
+            Country country,
+            string selfieUrl)
+        {
+            var request = new OnboardingRequest(
+                personalInfo,
+                contactInfo,
+                identityNumber,
+                country,
+                selfieUrl);
+
+            request.AddDomainEvent(new OnboardingRequestedEvent(
+                request.OnboardingId,
+                request.RequestReference,
+                request.IdentityNumber,
+                request.FirstName,
+                request.LastName,
+                request.Email
+            ));
+
+            return request;
+        }
+
+        /// <summary>
+        /// Legacy Create method for backward compatibility - use Create(PersonalInfo, ContactInfo, IdentityNumber, Country, string) instead
+        /// </summary>
+        [Obsolete("Use Create(PersonalInfo, ContactInfo, IdentityNumber, Country, string) instead")]
         public static OnboardingRequest Create(
             string firstName,
             string lastName,
@@ -55,19 +102,11 @@ namespace AfriPay.CORE.Entities
             string phoneNumber,
             string bvnValue)
         {
+            var personalInfo = new PersonalInfo(firstName, lastName, null, DateTime.UtcNow.AddYears(-25));
+            var contactInfo = new ContactInfo(email, phoneNumber);
             var bvn = BVN.Create(bvnValue);
-            var request = new OnboardingRequest(firstName, lastName, email, phoneNumber, bvn);
 
-            request.AddDomainEvent(new OnboardingRequestedEvent(
-                request.OnboardingId,
-                request.RequestReference,
-                request.BVN,
-                request.FirstName,
-                request.LastName,
-                request.Email
-            ));
-
-            return request;
+            return Create(personalInfo, contactInfo, bvn, Country.Nigeria, "https://placeholder.com/selfie.jpg");
         }
 
         public void MarkBvnVerificationPending()

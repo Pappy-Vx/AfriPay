@@ -37,9 +37,9 @@ namespace AfriPay.CORE.ValueObjects
         public PersonalInfo(
             string firstName,
             string lastName,
+            string? middleName,
             DateTime dateOfBirth,
-            string gender,
-            string? middleName = null)
+            string gender = "OTHER")
         {
             if (string.IsNullOrWhiteSpace(firstName))
                 throw new ArgumentException("First name cannot be empty", nameof(firstName));

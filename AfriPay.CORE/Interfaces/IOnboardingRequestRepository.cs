@@ -16,5 +16,6 @@ namespace AfriPay.CORE.Interfaces
         Task AddAsync(OnboardingRequest request, CancellationToken cancellationToken = default);
         Task UpdateAsync(OnboardingRequest request, CancellationToken cancellationToken = default);
         Task<bool> ExistsAsync(Guid onboardingId, CancellationToken cancellationToken = default);
+        Task<bool> ExistsAsync(string email, string phoneNumber, CancellationToken cancellationToken = default);
     }
 }

@@ -1,5 +1,6 @@
 using FluentValidation;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace AfriPay.APP.Common.Behaviours
 {
@@ -10,10 +11,14 @@ namespace AfriPay.APP.Common.Behaviours
         where TRequest : IRequest<TResponse>
     {
         private readonly IEnumerable<IValidator<TRequest>> _validators;
+        private readonly ILogger<ValidationBehaviour<TRequest, TResponse>> _logger;
 
-        public ValidationBehaviour(IEnumerable<IValidator<TRequest>> validators)
+        public ValidationBehaviour(
+            IEnumerable<IValidator<TRequest>> validators,
+            ILogger<ValidationBehaviour<TRequest, TResponse>> logger)
         {
             _validators = validators ?? throw new ArgumentNullException(nameof(validators));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public async Task<TResponse> Handle(
@@ -32,12 +37,17 @@ namespace AfriPay.APP.Common.Behaviours
                 _validators.Select(v => v.ValidateAsync(context, cancellationToken)));
 
             var failures = validationResults
-                .Where(r => r.Errors.Any())
                 .SelectMany(r => r.Errors)
+                .Where(f => f != null)
                 .ToList();
 
             if (failures.Any())
             {
+                _logger.LogWarning(
+                    "Validation failed for {RequestName}: {Errors}",
+                    typeof(TRequest).Name,
+                    failures.Select(f => f.ErrorMessage));
+
                 throw new Common.Exceptions.ValidationException(failures);
             }
 

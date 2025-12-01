@@ -1,29 +1,30 @@
-using System.Text.RegularExpressions;
+using System;
+using System.Linq;
 
 namespace AfriPay.CORE.ValueObjects
 {
     /// <summary>
-    /// National ID for Kenya
+    /// Kenya National ID
     /// </summary>
-    public class KenyaNationalId : IdentityNumber
+    public class KenyaNationalID : IdentityNumber
     {
-        private KenyaNationalId() { } // For EF Core
+        private KenyaNationalID() : base() { } // EF Core
 
-        public KenyaNationalId(string value) : base(value, "KE")
+        private KenyaNationalID(string value) : base(value, "KE")
         {
             Validate();
         }
 
+        public static KenyaNationalID Create(string value) => new(value);
+
         protected override void Validate()
         {
-            if (string.IsNullOrWhiteSpace(Value))
-                throw new ArgumentException("Kenya National ID cannot be empty");
+            // Kenya National ID is typically 7-8 digits
+            if (Value.Length < 7 || Value.Length > 9)
+                throw new ArgumentException("Kenya National ID must be between 7 and 9 digits", nameof(Value));
 
-            // Kenya National ID format: 7-8 digits
-            if (!Regex.IsMatch(Value, @"^\d{7,8}$"))
-                throw new ArgumentException("Kenya National ID must be 7 or 8 digits");
+            if (!Value.All(char.IsDigit))
+                throw new ArgumentException("Kenya National ID must contain only digits", nameof(Value));
         }
-
-        public static KenyaNationalId Create(string value) => new KenyaNationalId(value);
     }
 }

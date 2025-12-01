@@ -23,9 +23,13 @@ namespace AfriPay.APP.Common.Behaviours
             CancellationToken cancellationToken)
         {
             var requestName = typeof(TRequest).Name;
-            var stopwatch = Stopwatch.StartNew();
 
-            _logger.LogInformation("Handling {RequestName}", requestName);
+            _logger.LogInformation(
+                "Processing request {RequestName} {@Request}",
+                requestName,
+                request);
+
+            var stopwatch = Stopwatch.StartNew();
 
             try
             {
@@ -33,7 +37,7 @@ namespace AfriPay.APP.Common.Behaviours
 
                 stopwatch.Stop();
                 _logger.LogInformation(
-                    "Handled {RequestName} in {ElapsedMilliseconds}ms",
+                    "Completed request {RequestName} in {ElapsedMilliseconds}ms",
                     requestName,
                     stopwatch.ElapsedMilliseconds);
 
@@ -44,7 +48,7 @@ namespace AfriPay.APP.Common.Behaviours
                 stopwatch.Stop();
                 _logger.LogError(
                     ex,
-                    "Error handling {RequestName} after {ElapsedMilliseconds}ms",
+                    "Request {RequestName} failed after {ElapsedMilliseconds}ms",
                     requestName,
                     stopwatch.ElapsedMilliseconds);
                 throw;

@@ -1,4 +1,5 @@
-using AfriPay.CORE.Common;
+using AfriPay.APP.Common.Models;
+using AfriPay.CORE.Enums;
 using MediatR;
 
 namespace AfriPay.APP.Onboarding.Commands.StartOnboarding
@@ -6,24 +7,29 @@ namespace AfriPay.APP.Onboarding.Commands.StartOnboarding
     /// <summary>
     /// Command to initiate the onboarding process for a new customer
     /// </summary>
-    public record StartOnboardingCommand : IRequest<Result<StartOnboardingResponse>>
+    public class StartOnboardingCommand : IRequest<Result<StartOnboardingResponse>>
     {
-        public string FirstName { get; init; } = string.Empty;
-        public string LastName { get; init; } = string.Empty;
-        public string Email { get; init; } = string.Empty;
-        public string PhoneNumber { get; init; } = string.Empty;
-        public string BVN { get; init; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public string? MiddleName { get; set; }
+        public DateTime DateOfBirth { get; set; }
+        public string Email { get; set; } = string.Empty;
+        public string PhoneNumber { get; set; } = string.Empty;
+        public string IdentityNumber { get; set; } = string.Empty;
+        public IdentityType IdentityType { get; set; }
+        public Country Country { get; set; }
+        public string SelfieUrl { get; set; } = string.Empty;
+        public bool ConsentGiven { get; set; }
     }
 
     /// <summary>
     /// Response DTO for onboarding initiation
     /// </summary>
-    public record StartOnboardingResponse
+    public class StartOnboardingResponse
     {
-        public Guid OnboardingId { get; init; }
-        public string RequestReference { get; init; } = string.Empty;
-        public string Status { get; init; } = string.Empty;
-        public string Message { get; init; } = string.Empty;
-        public DateTime RequestedAt { get; init; }
+        public string RequestId { get; set; } = string.Empty;
+        public Guid OnboardingId { get; set; }
+        public OnboardingStatus Status { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 }

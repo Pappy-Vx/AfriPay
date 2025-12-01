@@ -61,6 +61,12 @@ namespace AfriPay.DAL.Repositories
             return await _context.OnboardingRequests
                 .AnyAsync(o => o.OnboardingId == onboardingId, cancellationToken);
         }
+
+        public async Task<bool> ExistsAsync(string email, string phoneNumber, CancellationToken cancellationToken = default)
+        {
+            return await _context.OnboardingRequests
+                .AnyAsync(o => o.Email == email || o.PhoneNumber == phoneNumber, cancellationToken);
+        }
     }
 
 

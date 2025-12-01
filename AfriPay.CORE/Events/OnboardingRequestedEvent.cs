@@ -14,7 +14,7 @@ namespace AfriPay.CORE.Events
         public DateTime OccurredOn { get; init; }
         public Guid OnboardingId { get; init; }
         public string RequestReference { get; init; }
-        public BVN BVN { get; init; }
+        public IdentityNumber IdentityNumber { get; init; }
         public string FirstName { get; init; }
         public string LastName { get; init; }
         public string Email { get; init; }
@@ -22,7 +22,7 @@ namespace AfriPay.CORE.Events
         public OnboardingRequestedEvent(
             Guid onboardingId,
             string requestReference,
-            BVN bvn,
+            IdentityNumber identityNumber,
             string firstName,
             string lastName,
             string email)
@@ -31,7 +31,7 @@ namespace AfriPay.CORE.Events
             OccurredOn = DateTime.UtcNow;
             OnboardingId = onboardingId;
             RequestReference = requestReference;
-            BVN = bvn;
+            IdentityNumber = identityNumber;
             FirstName = firstName;
             LastName = lastName;
             Email = email;
