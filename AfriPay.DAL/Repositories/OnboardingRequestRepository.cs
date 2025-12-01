@@ -75,7 +75,7 @@ namespace AfriPay.DAL.Repositories
         public async Task<bool> ExistsAsync(Guid onboardingId, CancellationToken cancellationToken = default)
         {
             return await _context.OnboardingRequests
-                .AnyAsync(o => o.Id == onboardingId, cancellationToken);
+                .AnyAsync(o => o.OnboardingId == onboardingId, cancellationToken);
         }
 
         public async Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default)

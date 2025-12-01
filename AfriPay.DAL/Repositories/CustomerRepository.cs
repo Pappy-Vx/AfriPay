@@ -28,7 +28,7 @@ namespace AfriPay.DAL.Repositories
         {
             return await _context.Customers
                 .Include(c => c.Accounts)
-                .FirstOrDefaultAsync(c => c.Email == email, cancellationToken);
+                .FirstOrDefaultAsync(c => c.ContactInfo.Email == email, cancellationToken);
         }
         public async Task<Customer?> GetByBvnAsync(string bvn, CancellationToken cancellationToken = default)
         {
@@ -61,7 +61,7 @@ namespace AfriPay.DAL.Repositories
         }
         public async Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default)
         {
-            return await _context.Customers.AnyAsync(c => c.Email == email, cancellationToken);
+            return await _context.Customers.AnyAsync(c => c.ContactInfo.Email == email, cancellationToken);
         }
         public async Task<bool> ExistsByBvnAsync(string bvn, CancellationToken cancellationToken = default)
         {

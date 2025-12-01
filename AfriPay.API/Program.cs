@@ -64,7 +64,7 @@ try
         provider.GetRequiredService<AfriPayDbContext>());
 
     // Register Domain Event Dispatcher
-    builder.Services.AddScoped<IDomainEventDispatcher, AfriPay.DAL.Services.DomainEventDispatcher>();
+    //builder.Services.AddScoped<IDomainEventDispatcher, AfriPay.DAL.Services.DomainEventDispatcher>();
 
     // Register Repositories
     builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
