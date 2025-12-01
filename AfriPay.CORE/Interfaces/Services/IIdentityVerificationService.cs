@@ -1,4 +1,5 @@
 using AfriPay.CORE.ValueObjects;
+using AfriPay.CORE.ValueObjects.AfriPay.CORE.ValueObjects;
 
 namespace AfriPay.CORE.Interfaces.Services
 {
@@ -25,7 +26,7 @@ namespace AfriPay.CORE.Interfaces.Services
         public string? VerifiedMiddleName { get; set; }
         public DateTime? VerifiedDateOfBirth { get; set; }
         public string? VerifiedPhone { get; set; }
-        public decimal NameMatchScore { get; set; }
+        public double NameMatchScore { get; set; }
         public decimal PhotoMatchScore { get; set; }
         public string? ProviderReference { get; set; }
         public string? ProviderResponse { get; set; }

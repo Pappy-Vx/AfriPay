@@ -1,3 +1,6 @@
+using AfriPay.CORE.ValueObjects.AfriPay.CORE.ValueObjects;
+using System.Text.RegularExpressions;
+
 using System.Text.RegularExpressions;
 
 namespace AfriPay.CORE.ValueObjects
@@ -7,21 +10,21 @@ namespace AfriPay.CORE.ValueObjects
     /// </summary>
     public class BvnNumber : IdentityNumber
     {
-        private BvnNumber() { } // For EF Core
+        protected BvnNumber() { } // For consistency/EF (though not used)
 
         public BvnNumber(string value) : base(value, "NG")
         {
-            Validate();
+            // Base ctor calls Validate, which is overridden here
         }
 
         protected override void Validate()
         {
+            base.Validate();  // Call base if needed for common rules
+
             if (string.IsNullOrWhiteSpace(Value))
                 throw new ArgumentException("BVN cannot be empty");
-
             if (Value.Length != 11)
                 throw new ArgumentException("BVN must be exactly 11 digits");
-
             if (!Regex.IsMatch(Value, @"^\d{11}$"))
                 throw new ArgumentException("BVN must contain only digits");
         }
@@ -29,3 +32,33 @@ namespace AfriPay.CORE.ValueObjects
         public static BvnNumber Create(string value) => new BvnNumber(value);
     }
 }
+
+//namespace AfriPay.CORE.ValueObjects
+//{
+//    /// <summary>
+//    /// Bank Verification Number for Nigeria
+//    /// </summary>
+//    public class BvnNumber : IdentityNumber
+//    {
+//        private BvnNumber() { } // For EF Core
+
+//        public BvnNumber(string value) : base(value, "NG")
+//        {
+//            Validate();
+//        }
+
+//        protected override void Validate()
+//        {
+//            if (string.IsNullOrWhiteSpace(Value))
+//                throw new ArgumentException("BVN cannot be empty");
+
+//            if (Value.Length != 11)
+//                throw new ArgumentException("BVN must be exactly 11 digits");
+
+//            if (!Regex.IsMatch(Value, @"^\d{11}$"))
+//                throw new ArgumentException("BVN must contain only digits");
+//        }
+
+//        public static BvnNumber Create(string value) => new BvnNumber(value);
+//    }
+//}

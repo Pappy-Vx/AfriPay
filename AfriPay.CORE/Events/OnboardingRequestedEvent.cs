@@ -1,5 +1,6 @@
 ﻿using AfriPay.CORE.Common;
 using AfriPay.CORE.ValueObjects;
+using AfriPay.CORE.ValueObjects.AfriPay.CORE.ValueObjects;
 using System;
 using System.Collections.Generic;
 using System.Linq;

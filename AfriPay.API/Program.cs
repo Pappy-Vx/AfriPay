@@ -14,19 +14,20 @@ using Serilog.Events;
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
+    .MinimumLevel.Override("System", LogEventLevel.Warning)
     .MinimumLevel.Override("Microsoft.EntityFrameworkCore", LogEventLevel.Warning)
     .Enrich.FromLogContext()
-    .Enrich.WithEnvironmentName()
     .Enrich.WithMachineName()
     .Enrich.WithThreadId()
+    .Enrich.WithProperty("Application", "AfriPay.API")
     .WriteTo.Console(
         outputTemplate: "[{Timestamp:HH:mm:ss} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
     .WriteTo.File(
-        path: "logs/afripay-.log",
+        path: "logs/afripay-.txt",
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 30,
-        outputTemplate: "[{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} {Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
-    .WriteTo.Seq(serverUrl: "http://localhost:5341", apiKey: null)
+        outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
+    .WriteTo.Seq("http://localhost:5341") // Optional: Seq for log aggregation
     .CreateLogger();
 
 try
@@ -62,6 +63,9 @@ try
     builder.Services.AddScoped<IApplicationDbContext>(provider =>
         provider.GetRequiredService<AfriPayDbContext>());
 
+    // Register Domain Event Dispatcher
+    builder.Services.AddScoped<IDomainEventDispatcher, AfriPay.DAL.Services.DomainEventDispatcher>();
+
     // Register Repositories
     builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
     builder.Services.AddScoped<IAccountRepository, AccountRepository>();
@@ -81,10 +85,14 @@ try
     builder.Services.AddScoped<BvnVerifiedForOnboardingHandler>();
     builder.Services.AddScoped<CustomerCreatedHandler>();
 
-    // External Service Implementations (Mock for now)
+    // External Service Implementations
     builder.Services.AddScoped<IBvnVerificationService, MockBvnVerificationService>();
+    builder.Services.AddScoped<AfriPay.CORE.Interfaces.Services.IIdentityVerificationService, AfriPay.DAL.ExternalServices.IdentityVerification.BvnVerificationService>();
     builder.Services.AddScoped<IVirtualAccountProvider, MockVirtualAccountProvider>();
     builder.Services.AddScoped<IEventPublisher, InMemoryEventPublisher>();
+
+    // Background Services
+    builder.Services.AddHostedService<AfriPay.DAL.BackgroundJobs.OnboardingWorker>();
 
     // CORS
     builder.Services.AddCorsPolicy("AllowAll");

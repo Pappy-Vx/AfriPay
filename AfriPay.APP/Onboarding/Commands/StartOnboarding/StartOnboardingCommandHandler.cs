@@ -3,6 +3,7 @@ using AfriPay.CORE.Entities;
 using AfriPay.CORE.Enums;
 using AfriPay.CORE.Interfaces;
 using AfriPay.CORE.ValueObjects;
+using AfriPay.CORE.ValueObjects.AfriPay.CORE.ValueObjects;
 using MediatR;
 using Microsoft.Extensions.Logging;
 

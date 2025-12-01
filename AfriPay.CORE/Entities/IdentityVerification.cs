@@ -2,6 +2,7 @@ using AfriPay.CORE.Common;
 using AfriPay.CORE.Enums;
 using AfriPay.CORE.Events;
 using AfriPay.CORE.ValueObjects;
+using AfriPay.CORE.ValueObjects.AfriPay.CORE.ValueObjects;
 
 namespace AfriPay.CORE.Entities
 {
