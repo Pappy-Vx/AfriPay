@@ -25,10 +25,14 @@ namespace AfriPay.DAL.Configurations
                     value => AccountId.Create(value))
                 .IsRequired();
 
+
+
+            // Configure AccountNumber as owned type (Value Object)
             builder.Property(a => a.AccountNumber)
                 .HasConversion(
-                    an => an.Value,
+                    accountNumber => accountNumber.Value,
                     value => AccountNumber.Create(value))
+                .HasColumnName("AccountNumber")
                 .HasMaxLength(10)
                 .IsRequired();
 
@@ -46,6 +50,20 @@ namespace AfriPay.DAL.Configurations
 
                 money.Property(m => m.Currency)
                     .HasColumnName("BalanceCurrency")
+                    .HasMaxLength(3)
+                    .IsRequired();
+            });
+
+            // Configure ReservedBalance as owned entity (THIS WAS MISSING!)
+            builder.OwnsOne(a => a.ReservedBalance, money =>
+            {
+                money.Property(m => m.Amount)
+                    .HasColumnName("ReservedBalanceAmount")
+                    .HasPrecision(18, 2)
+                    .IsRequired();
+
+                money.Property(m => m.Currency)
+                    .HasColumnName("ReservedBalanceCurrency")
                     .HasMaxLength(3)
                     .IsRequired();
             });

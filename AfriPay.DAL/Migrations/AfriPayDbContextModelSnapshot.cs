@@ -30,16 +30,29 @@ namespace AfriPay.DAL.Migrations
                     b.Property<string>("AccountNumber")
                         .IsRequired()
                         .HasMaxLength(10)
-                        .HasColumnType("nvarchar(10)");
+                        .HasColumnType("nvarchar(10)")
+                        .HasColumnName("AccountNumber");
+
+                    b.Property<int>("AccountType")
+                        .HasColumnType("int");
 
                     b.Property<Guid>("CustomerId")
                         .HasColumnType("uniqueidentifier");
+
+                    b.Property<decimal>("DailyTransferLimit")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<decimal>("DailyTransferTotal")
+                        .HasColumnType("decimal(18,2)");
 
                     b.Property<DateTime>("DateOpened")
                         .HasColumnType("datetime2");
 
                     b.Property<bool>("IsActive")
                         .HasColumnType("bit");
+
+                    b.Property<DateTime?>("LastDailyResetDate")
+                        .HasColumnType("datetime2");
 
                     b.Property<string>("ProviderReference")
                         .HasMaxLength(100)
@@ -50,6 +63,9 @@ namespace AfriPay.DAL.Migrations
                         .IsRequired()
                         .ValueGeneratedOnAddOrUpdate()
                         .HasColumnType("rowversion");
+
+                    b.Property<decimal>("SingleTransferLimit")
+                        .HasColumnType("decimal(18,2)");
 
                     b.HasKey("AccountId");
 
@@ -63,6 +79,77 @@ namespace AfriPay.DAL.Migrations
                     b.ToTable("Accounts", (string)null);
                 });
 
+            modelBuilder.Entity("AfriPay.CORE.Entities.AmlScreening", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Flags")
+                        .IsRequired()
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<Guid>("OnboardingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RawResponse")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<int>("RiskLevel")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("RiskScore")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<DateTime?>("ScreeningDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("ScreeningProvider")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ScreeningReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OnboardingId");
+
+                    b.HasIndex("RiskLevel");
+
+                    b.HasIndex("ScreeningReference");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("AmlScreenings", (string)null);
+                });
+
             modelBuilder.Entity("AfriPay.CORE.Entities.Customer", b =>
                 {
                     b.Property<Guid>("CustomerId")
@@ -71,7 +158,8 @@ namespace AfriPay.DAL.Migrations
                     b.Property<string>("BVN")
                         .IsRequired()
                         .HasMaxLength(11)
-                        .HasColumnType("nvarchar(11)");
+                        .HasColumnType("nvarchar(11)")
+                        .HasColumnName("BVN");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
@@ -79,12 +167,12 @@ namespace AfriPay.DAL.Migrations
                     b.Property<string>("CustomerReference")
                         .IsRequired()
                         .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasColumnType("nvarchar(50)")
+                        .HasColumnName("CustomerReference");
 
                     b.Property<string>("Email")
                         .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                        .HasColumnType("nvarchar(450)");
 
                     b.Property<string>("FirstName")
                         .IsRequired()
@@ -104,8 +192,10 @@ namespace AfriPay.DAL.Migrations
 
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -121,7 +211,143 @@ namespace AfriPay.DAL.Migrations
                     b.HasIndex("Email")
                         .IsUnique();
 
-                    b.ToTable("Customers", (string)null);
+                    b.ToTable("Customers", null, t =>
+                        {
+                            t.Property("Email")
+                                .HasColumnName("Customer_Email");
+
+                            t.Property("PhoneNumber")
+                                .HasColumnName("Customer_PhoneNumber");
+                        });
+                });
+
+            modelBuilder.Entity("AfriPay.CORE.Entities.IdentityVerification", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("FailureReason")
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<decimal?>("MatchScore")
+                        .HasPrecision(5, 2)
+                        .HasColumnType("decimal(5,2)");
+
+                    b.Property<Guid>("OnboardingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("RawResponse")
+                        .HasMaxLength(4000)
+                        .HasColumnType("nvarchar(4000)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<DateTime?>("VerificationDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("VerificationProvider")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("VerificationReference")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("OnboardingId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("VerificationReference");
+
+                    b.ToTable("IdentityVerifications", (string)null);
+                });
+
+            modelBuilder.Entity("AfriPay.CORE.Entities.ManualReviewCase", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<DateTime?>("AssignedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("AssignedTo")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("Comments")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("CreatedBy")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("OnboardingId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<string>("Resolution")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("ResolutionNotes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("nvarchar(1000)");
+
+                    b.Property<DateTime?>("ResolvedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<string>("UpdatedBy")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AssignedTo");
+
+                    b.HasIndex("OnboardingId");
+
+                    b.HasIndex("Priority");
+
+                    b.HasIndex("Status");
+
+                    b.ToTable("ManualReviewCases", (string)null);
                 });
 
             modelBuilder.Entity("AfriPay.CORE.Entities.OnboardingRequest", b =>
@@ -130,65 +356,46 @@ namespace AfriPay.DAL.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("BVN")
-                        .IsRequired()
-                        .HasMaxLength(11)
-                        .HasColumnType("nvarchar(11)");
-
                     b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("Country")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<Guid?>("CustomerId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
+                    b.Property<Guid?>("CustomerId1")
+                        .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("FailureReason")
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
-
-                    b.Property<string>("FirstName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<Guid>("Id")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("LastName")
-                        .IsRequired()
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
-
-                    b.Property<string>("PhoneNumber")
-                        .IsRequired()
-                        .HasMaxLength(20)
-                        .HasColumnType("nvarchar(20)");
 
                     b.Property<string>("RequestReference")
                         .IsRequired()
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
 
-                    b.Property<DateTime>("RequestedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("Status")
+                    b.Property<string>("SelfieUrl")
                         .IsRequired()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)");
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
 
                     b.Property<Guid?>("VirtualAccountId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("OnboardingId");
 
-                    b.HasIndex("BVN");
-
                     b.HasIndex("CustomerId");
+
+                    b.HasIndex("CustomerId1");
 
                     b.HasIndex("RequestReference")
                         .IsUnique();
@@ -208,21 +415,247 @@ namespace AfriPay.DAL.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.OwnsOne("AfriPay.CORE.ValueObjects.Money", "Balance", b1 =>
+                        {
+                            b1.Property<Guid>("AccountId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("decimal(18,2)")
+                                .HasColumnName("BalanceAmount");
+
+                            b1.Property<string>("Currency")
+                                .IsRequired()
+                                .HasMaxLength(3)
+                                .HasColumnType("nvarchar(3)")
+                                .HasColumnName("BalanceCurrency");
+
+                            b1.HasKey("AccountId");
+
+                            b1.ToTable("Accounts");
+
+                            b1.WithOwner()
+                                .HasForeignKey("AccountId");
+                        });
+
+                    b.OwnsOne("AfriPay.CORE.ValueObjects.Money", "ReservedBalance", b1 =>
+                        {
+                            b1.Property<Guid>("AccountId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<decimal>("Amount")
+                                .HasPrecision(18, 2)
+                                .HasColumnType("decimal(18,2)")
+                                .HasColumnName("ReservedBalanceAmount");
+
+                            b1.Property<string>("Currency")
+                                .IsRequired()
+                                .HasMaxLength(3)
+                                .HasColumnType("nvarchar(3)")
+                                .HasColumnName("ReservedBalanceCurrency");
+
+                            b1.HasKey("AccountId");
+
+                            b1.ToTable("Accounts");
+
+                            b1.WithOwner()
+                                .HasForeignKey("AccountId");
+                        });
+
+                    b.Navigation("Balance")
+                        .IsRequired();
+
                     b.Navigation("Customer");
+
+                    b.Navigation("ReservedBalance")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("AfriPay.CORE.Entities.Customer", b =>
+                {
+                    b.OwnsOne("AfriPay.CORE.ValueObjects.ContactInfo", "ContactInfo", b1 =>
+                        {
+                            b1.Property<Guid>("CustomerId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<string>("AlternativePhoneNumber")
+                                .HasColumnType("nvarchar(max)");
+
+                            b1.Property<string>("Email")
+                                .IsRequired()
+                                .HasMaxLength(200)
+                                .HasColumnType("nvarchar(200)")
+                                .HasColumnName("Email");
+
+                            b1.Property<string>("PhoneNumber")
+                                .IsRequired()
+                                .HasMaxLength(20)
+                                .HasColumnType("nvarchar(20)")
+                                .HasColumnName("PhoneNumber");
+
+                            b1.HasKey("CustomerId");
+
+                            b1.ToTable("Customers");
+
+                            b1.WithOwner()
+                                .HasForeignKey("CustomerId");
+                        });
+
+                    b.OwnsOne("AfriPay.CORE.ValueObjects.Address", "Address", b1 =>
+                        {
+                            b1.Property<Guid>("CustomerId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<string>("City")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("nvarchar(100)")
+                                .HasColumnName("AddressCity");
+
+                            b1.Property<string>("Country")
+                                .IsRequired()
+                                .HasMaxLength(3)
+                                .HasColumnType("nvarchar(3)")
+                                .HasColumnName("AddressCountry");
+
+                            b1.Property<string>("PostalCode")
+                                .HasMaxLength(20)
+                                .HasColumnType("nvarchar(20)")
+                                .HasColumnName("AddressPostalCode");
+
+                            b1.Property<string>("State")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("nvarchar(100)")
+                                .HasColumnName("AddressState");
+
+                            b1.Property<string>("Street")
+                                .IsRequired()
+                                .HasMaxLength(200)
+                                .HasColumnType("nvarchar(200)")
+                                .HasColumnName("AddressStreet");
+
+                            b1.HasKey("CustomerId");
+
+                            b1.ToTable("Customers");
+
+                            b1.WithOwner()
+                                .HasForeignKey("CustomerId");
+                        });
+
+                    b.Navigation("Address");
+
+                    b.Navigation("ContactInfo");
+                });
+
+            modelBuilder.Entity("AfriPay.CORE.Entities.IdentityVerification", b =>
+                {
+                    b.OwnsOne("AfriPay.CORE.ValueObjects.AfriPay.CORE.ValueObjects.IdentityNumber", "IdentityNumber", b1 =>
+                        {
+                            b1.Property<Guid>("IdentityVerificationId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<string>("Country")
+                                .IsRequired()
+                                .HasMaxLength(3)
+                                .HasColumnType("nvarchar(3)")
+                                .HasColumnName("IdentityCountry");
+
+                            b1.Property<string>("Value")
+                                .IsRequired()
+                                .HasMaxLength(50)
+                                .HasColumnType("nvarchar(50)")
+                                .HasColumnName("IdentityNumber");
+
+                            b1.HasKey("IdentityVerificationId");
+
+                            b1.ToTable("IdentityVerifications");
+
+                            b1.WithOwner()
+                                .HasForeignKey("IdentityVerificationId");
+                        });
+
+                    b.Navigation("IdentityNumber")
+                        .IsRequired();
                 });
 
             modelBuilder.Entity("AfriPay.CORE.Entities.OnboardingRequest", b =>
                 {
                     b.HasOne("AfriPay.CORE.Entities.Customer", "Customer")
-                        .WithMany("OnboardingRequests")
+                        .WithMany()
                         .HasForeignKey("CustomerId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.HasOne("AfriPay.CORE.Entities.Customer", null)
+                        .WithMany("OnboardingRequests")
+                        .HasForeignKey("CustomerId1");
 
                     b.HasOne("AfriPay.CORE.Entities.Account", "VirtualAccount")
                         .WithMany()
-                        .HasForeignKey("VirtualAccountId");
+                        .HasForeignKey("VirtualAccountId")
+                        .OnDelete(DeleteBehavior.NoAction);
+
+                    b.OwnsOne("AfriPay.CORE.ValueObjects.ContactInfo", "ContactInfo", b1 =>
+                        {
+                            b1.Property<Guid>("OnboardingRequestOnboardingId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<string>("AlternativePhoneNumber")
+                                .HasColumnType("nvarchar(max)");
+
+                            b1.Property<string>("Email")
+                                .IsRequired()
+                                .HasMaxLength(100)
+                                .HasColumnType("nvarchar(100)")
+                                .HasColumnName("Email");
+
+                            b1.Property<string>("PhoneNumber")
+                                .IsRequired()
+                                .HasMaxLength(20)
+                                .HasColumnType("nvarchar(20)")
+                                .HasColumnName("PhoneNumber");
+
+                            b1.HasKey("OnboardingRequestOnboardingId");
+
+                            b1.ToTable("OnboardingRequests");
+
+                            b1.WithOwner()
+                                .HasForeignKey("OnboardingRequestOnboardingId");
+                        });
+
+                    b.OwnsOne("AfriPay.CORE.ValueObjects.AfriPay.CORE.ValueObjects.IdentityNumber", "IdentityNumber", b1 =>
+                        {
+                            b1.Property<Guid>("OnboardingRequestOnboardingId")
+                                .HasColumnType("uniqueidentifier");
+
+                            b1.Property<string>("Country")
+                                .IsRequired()
+                                .HasMaxLength(3)
+                                .HasColumnType("nvarchar(3)")
+                                .HasColumnName("IdentityCountry");
+
+                            b1.Property<string>("Value")
+                                .IsRequired()
+                                .HasMaxLength(50)
+                                .HasColumnType("nvarchar(50)")
+                                .HasColumnName("IdentityNumber");
+
+                            b1.HasKey("OnboardingRequestOnboardingId");
+
+                            b1.ToTable("OnboardingRequests");
+
+                            b1.WithOwner()
+                                .HasForeignKey("OnboardingRequestOnboardingId");
+                        });
+
+                    b.Navigation("ContactInfo")
+                        .IsRequired();
 
                     b.Navigation("Customer");
+
+                    b.Navigation("IdentityNumber")
+                        .IsRequired();
 
                     b.Navigation("VirtualAccount");
                 });

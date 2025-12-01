@@ -6,23 +6,49 @@ using System.Threading.Tasks;
 
 namespace AfriPay.CORE.ValueObjects
 {
+    //public record AccountNumber
+    //{
+    //    public string Value { get; init; }
+
+    //    private AccountNumber() { }
+    //    private AccountNumber(string value)
+    //    {
+    //        if (string.IsNullOrWhiteSpace(value))
+    //            throw new ArgumentException("Account number cannot be empty", nameof(value));
+
+    //        if (value.Length != 10)
+    //            throw new ArgumentException("Account number must be 10 digits", nameof(value));
+
+    //        Value = value;
+    //    }
+
+    //    public static AccountNumber Create(string value) => new(value);
+    //    public override string ToString() => Value;
+    //}
+
     public record AccountNumber
     {
-        public string Value { get; init; }
+        public string Value { get; }
 
-        private AccountNumber() { }
-        private AccountNumber(string value)
+        public AccountNumber(string value)
         {
-            if (string.IsNullOrWhiteSpace(value))
-                throw new ArgumentException("Account number cannot be empty", nameof(value));
+            if (string.IsNullOrWhiteSpace(value) || value.Length != 10)
+                throw new ArgumentException("Account number must be 10 digits");
 
-            if (value.Length != 10)
-                throw new ArgumentException("Account number must be 10 digits", nameof(value));
+            if (!value.All(char.IsDigit))
+                throw new ArgumentException("Account number must contain only digits");
 
             Value = value;
         }
 
+        // EF Core needs this
+        private AccountNumber() : this(string.Empty) { }
+
         public static AccountNumber Create(string value) => new(value);
+
+        public static implicit operator string(AccountNumber number) => number.Value;
+        public static explicit operator AccountNumber(string value) => new(value);
+
         public override string ToString() => Value;
     }
 
