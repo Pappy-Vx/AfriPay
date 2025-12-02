@@ -17,6 +17,8 @@ namespace AfriPay.CORE.Entities
         public string PhoneNumber { get; private set; }
         public BVN BVN { get; private set; }
 
+        public string PasswordHash { get; private set; } = string.Empty;
+
         // Enhanced value objects (optional for future use)
         public PersonalInfo? PersonalInfo { get; private set; }
         public ContactInfo? ContactInfo { get; private set; }
@@ -42,6 +44,7 @@ namespace AfriPay.CORE.Entities
             string lastName,
             string email,
             string phoneNumber,
+            string passwordHash,
             BVN bvn)
         {
             CustomerId = CustomerId.Create();
@@ -51,6 +54,7 @@ namespace AfriPay.CORE.Entities
             LastName = lastName;
             Email = email;
             PhoneNumber = phoneNumber;
+            PasswordHash = passwordHash;
             BVN = bvn;
             IsBvnVerified = false;
             CreatedAt = DateTime.UtcNow;
@@ -59,37 +63,77 @@ namespace AfriPay.CORE.Entities
         }
 
         public static Customer Create(
-            string firstName,
-            string lastName,
-            string email,
-            string phoneNumber,
-            BVN bvn)
+    string firstName,
+    string lastName,
+    string email,
+    string phoneNumber,
+    string passwordHash,
+    BVN bvn)
         {
-            // Validation
+            // Validation (unchanged)
             if (string.IsNullOrWhiteSpace(firstName))
                 throw new ArgumentException("First name is required", nameof(firstName));
-
             if (string.IsNullOrWhiteSpace(lastName))
                 throw new ArgumentException("Last name is required", nameof(lastName));
-
             if (string.IsNullOrWhiteSpace(email))
                 throw new ArgumentException("Email is required", nameof(email));
-
+            if (string.IsNullOrWhiteSpace(passwordHash))
+                throw new ArgumentException("Password", nameof(passwordHash));
             if (string.IsNullOrWhiteSpace(phoneNumber))
                 throw new ArgumentException("Phone number is required", nameof(phoneNumber));
 
-            var customer = new Customer(firstName, lastName, email, phoneNumber, bvn);
+            var customer = new Customer(firstName, lastName, email, phoneNumber, passwordHash, bvn);
+
+            // Initialize ContactInfo to sync with flat properties
+            customer.UpdateContactInfo(new ContactInfo(email, phoneNumber));
 
             customer.AddDomainEvent(new CustomerCreatedEvent(
                 customer.CustomerId,
                 customer.CustomerReference,
                 customer.FirstName,
                 customer.LastName,
-                customer.Email
+                customer.ContactInfo.Email  // Now safe; ContactInfo is set
             ));
 
             return customer;
         }
+
+        //public static Customer Create(
+        //    string firstName,
+        //    string lastName,
+        //    string email,
+        //    string phoneNumber,
+        //    string passwordHash,
+        //    BVN bvn)
+        //{
+        //    // Validation
+        //    if (string.IsNullOrWhiteSpace(firstName))
+        //        throw new ArgumentException("First name is required", nameof(firstName));
+
+        //    if (string.IsNullOrWhiteSpace(lastName))
+        //        throw new ArgumentException("Last name is required", nameof(lastName));
+
+        //    if (string.IsNullOrWhiteSpace(email))
+        //        throw new ArgumentException("Email is required", nameof(email));
+        //    if(string.IsNullOrWhiteSpace(passwordHash))
+        //        throw new ArgumentException("Password", nameof(passwordHash));
+
+        //    if (string.IsNullOrWhiteSpace(phoneNumber))
+        //        throw new ArgumentException("Phone number is required", nameof(phoneNumber));
+
+        //    var customer = new Customer(firstName, lastName, email, phoneNumber,passwordHash, bvn);
+
+        //    customer.AddDomainEvent(new CustomerCreatedEvent(
+        //        customer.CustomerId,
+        //        customer.CustomerReference,
+        //        customer.FirstName,
+        //        customer.LastName,
+        //        customer.ContactInfo.Email
+
+        //    ));
+
+        //    return customer;
+        //}
 
         public void VerifyBvn()
         {
@@ -157,6 +201,24 @@ namespace AfriPay.CORE.Entities
         {
             Address = address ?? throw new ArgumentNullException(nameof(address));
             UpdatedAt = DateTime.UtcNow;
+        }
+
+        /// </summary>
+        public void SetPassword(string passwordHash)
+        {
+            if (string.IsNullOrWhiteSpace(passwordHash))
+                throw new ArgumentException("Password hash cannot be empty", nameof(passwordHash));
+
+            PasswordHash = passwordHash;
+        }
+        
+
+        /// <summary>
+        /// Deactivate the customer account
+        /// </summary>
+        public void Deactivate()
+        {
+            IsActive = false;
         }
     }
 }

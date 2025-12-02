@@ -11,10 +11,13 @@ using AfriPay.DAL.Data;
 using AfriPay.DAL.Repositories;
 using AfriPay.DAL.Services;
 using MediatR;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Serilog;
 using Serilog.Events;
+using System.Text;
 
 // =====================================================================
 // SERILOG CONFIGURATION
@@ -71,6 +74,12 @@ try
     builder.Services.AddScoped<IEventPublisher, InMemoryEventPublisher>();
 
     // =====================================================================
+    // AUTHENTICATION SERVICES
+    // =====================================================================
+    builder.Services.AddScoped<IPasswordHasher, PasswordHasher>();
+    builder.Services.AddScoped<IJwtTokenGenerator, JwtTokenGenerator>();
+
+    // =====================================================================
     // DOMAIN EVENT HANDLERS
     // =====================================================================
     builder.Services.AddTransient<INotificationHandler<OnboardingRequestedEvent>, OnboardingRequestedHandler>();
@@ -89,6 +98,49 @@ try
     builder.Services.AddHostedService<OnboardingWorker>();
 
     // =====================================================================
+    // JWT AUTHENTICATION
+    // =====================================================================
+    var jwtSettings = builder.Configuration.GetSection("JwtSettings");
+    var secretKey = jwtSettings["SecretKey"] ?? throw new InvalidOperationException("JWT SecretKey not configured");
+
+    builder.Services.AddAuthentication(options =>
+    {
+        options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+        options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    })
+    .AddJwtBearer(options =>
+    {
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
+            ValidIssuer = jwtSettings["Issuer"],
+            ValidAudience = jwtSettings["Audience"],
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+            ClockSkew = TimeSpan.Zero // Remove default 5 minute tolerance
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnAuthenticationFailed = context =>
+            {
+                Log.Warning("Authentication failed: {Error}", context.Exception.Message);
+                return Task.CompletedTask;
+            },
+            OnTokenValidated = context =>
+            {
+                Log.Information("Token validated for user: {UserId}",
+                    context.Principal?.Identity?.Name ?? "Unknown");
+                return Task.CompletedTask;
+            }
+        };
+    });
+
+    builder.Services.AddAuthorization();
+
+    // =====================================================================
     // CONTROLLERS + SWAGGER
     // =====================================================================
     builder.Services.AddControllers();
@@ -100,7 +152,32 @@ try
         {
             Title = "AfriPay API",
             Version = "v1",
-            Description = "African Payments Onboarding API with Clean Architecture"
+            Description = "African Payments Onboarding API with Clean Architecture and JWT Authentication"
+        });
+
+        // Add JWT Authentication to Swagger
+        c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
+        {
+            Description = "JWT Authorization header using the Bearer scheme. Enter 'Bearer' [space] and then your token in the text input below.",
+            Name = "Authorization",
+            In = ParameterLocation.Header,
+            Type = SecuritySchemeType.ApiKey,
+            Scheme = "Bearer"
+        });
+
+        c.AddSecurityRequirement(new OpenApiSecurityRequirement
+        {
+            {
+                new OpenApiSecurityScheme
+                {
+                    Reference = new OpenApiReference
+                    {
+                        Type = ReferenceType.SecurityScheme,
+                        Id = "Bearer"
+                    }
+                },
+                Array.Empty<string>()
+            }
         });
     });
 
@@ -126,6 +203,9 @@ try
     }
 
     app.UseHttpsRedirection();
+
+    // Authentication must come before Authorization
+    app.UseAuthentication();
     app.UseAuthorization();
 
     // =====================================================================
@@ -133,7 +213,6 @@ try
     // =====================================================================
     app.MapControllers();
     app.MapGet("/", () => "AfriPay API is running. Visit /swagger for documentation.");
-
 
     if (app.Environment.IsDevelopment())
     {

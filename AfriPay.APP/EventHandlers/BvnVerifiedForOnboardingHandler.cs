@@ -1,4 +1,5 @@
-﻿using AfriPay.CORE.Entities;
+﻿using AfriPay.APP.Services;
+using AfriPay.CORE.Entities;
 using AfriPay.CORE.Enums;
 using AfriPay.CORE.Events;
 using AfriPay.CORE.Interfaces;
@@ -13,13 +14,16 @@ public class BvnVerifiedForOnboardingHandler : INotificationHandler<BvnVerifiedF
     private readonly IUnitOfWork _unitOfWork;
     private readonly IVirtualAccountProvider _virtualAccountProvider;
     private readonly ILogger<BvnVerifiedForOnboardingHandler> _logger;
+    private readonly IPasswordHasher _passwordHasher;
 
     public BvnVerifiedForOnboardingHandler(
         IUnitOfWork unitOfWork,
         IVirtualAccountProvider virtualAccountProvider,
+        IPasswordHasher passwordHasher,
         ILogger<BvnVerifiedForOnboardingHandler> logger)
     {
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
+        _passwordHasher = passwordHasher ?? throw new ArgumentNullException(nameof(passwordHasher));
         _virtualAccountProvider = virtualAccountProvider ?? throw new ArgumentNullException(nameof(virtualAccountProvider));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
@@ -40,13 +44,15 @@ public class BvnVerifiedForOnboardingHandler : INotificationHandler<BvnVerifiedF
 
             // 2. Create customer
             _logger.LogInformation("Creating customer for: {FirstName} {LastName}", request.FirstName, request.LastName);
-
+            var password = _passwordHasher.HashPassword("Password123");
             var customer = Customer.Create(
                 request.FirstName,
                 request.LastName,
-                request.Email,
-                request.PhoneNumber,
-                request.BVN!);
+                request.ContactInfo.Email,
+                request.ContactInfo.PhoneNumber,
+                password,
+                request.BVN!
+                );
 
             customer.VerifyBvn();
             await _unitOfWork.Customers.AddAsync(customer, cancellationToken);
@@ -64,8 +70,8 @@ public class BvnVerifiedForOnboardingHandler : INotificationHandler<BvnVerifiedF
                 customer.CustomerReference.Value,
                 request.FirstName,
                 request.LastName,
-                request.Email,
-                request.PhoneNumber,
+                request.ContactInfo.Email,
+                request.ContactInfo.PhoneNumber,
                 cancellationToken);
 
             if (virtualAccountResult.IsSuccess)
