@@ -20,9 +20,6 @@ namespace AfriPay.API.Infrastructure
         {
             _logger.LogInformation("Mock BVN verification for: {BVN}", bvn);
 
-            // Simulate API call delay
-            await Task.Delay(1000, cancellationToken);
-
             // Mock verification logic - in production, this would call actual BVN API
             if (bvn.Length != 11)
             {

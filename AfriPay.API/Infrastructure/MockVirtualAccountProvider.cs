@@ -23,9 +23,6 @@ namespace AfriPay.API.Infrastructure
         {
             _logger.LogInformation("Mock VA creation for: {CustomerReference}", customerReference);
 
-            // Simulate API call delay
-            await Task.Delay(1500, cancellationToken);
-
             // Generate mock account number
             var accountNumber = Interlocked.Increment(ref _accountCounter).ToString();
 
