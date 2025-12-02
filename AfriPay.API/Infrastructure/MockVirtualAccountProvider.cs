@@ -6,14 +6,13 @@ namespace AfriPay.API.Infrastructure
     public class MockVirtualAccountProvider : IVirtualAccountProvider
     {
         private readonly ILogger<MockVirtualAccountProvider> _logger;
-        private static int _accountCounter = 1000000000;
 
         public MockVirtualAccountProvider(ILogger<MockVirtualAccountProvider> logger)
         {
             _logger = logger;
         }
 
-        public async Task<Result<VirtualAccountResponse>> CreateVirtualAccountAsync(
+        public Task<Result<VirtualAccountResponse>> CreateVirtualAccountAsync(
             string customerReference,
             string firstName,
             string lastName,
@@ -21,22 +20,25 @@ namespace AfriPay.API.Infrastructure
             string phoneNumber,
             CancellationToken cancellationToken = default)
         {
-            _logger.LogInformation("Mock VA creation for: {CustomerReference}", customerReference);
+            var customerName = $"{firstName} {lastName}";
+            _logger.LogInformation("Creating mock virtual account for: {CustomerName}, Ref: {CustomerReference}",
+                customerName, customerReference);
 
-            // Generate mock account number
-            var accountNumber = Interlocked.Increment(ref _accountCounter).ToString();
+            // Generate a mock account number (10 digits starting with 10)
+            var accountNumber = $"10{Random.Shared.Next(10000000, 99999999)}";
 
             var response = new VirtualAccountResponse
             {
                 AccountNumber = accountNumber,
-                AccountName = $"{firstName} {lastName}",
-                BankName = "AfriPay Virtual Bank",
-                ProviderReference = $"VA-{Guid.NewGuid():N}",
+                AccountName = customerName,
+                BankName = "AfriPay Mock Bank",
+                ProviderReference = $"MOCK-{Guid.NewGuid():N}"[..20].ToUpper(),
                 IsSuccess = true
             };
 
-            return Result.Success(response);
+            _logger.LogInformation("Mock virtual account created: {AccountNumber}", accountNumber);
+
+            return Task.FromResult(Result<VirtualAccountResponse>.Success(response));
         }
     }
-
 }
