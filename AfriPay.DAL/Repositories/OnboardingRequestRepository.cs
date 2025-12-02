@@ -27,10 +27,7 @@ namespace AfriPay.DAL.Repositories
             return await _context.OnboardingRequests
                 .Include(o => o.Customer)
                 .Include(o => o.VirtualAccount)
-                //.Include(o => o.)
-                //.Include(o => o.AmlScreening)
-                //.Include(o => o.ManualReviewCases)
-                .FirstOrDefaultAsync(o => o.Id == onboardingId, cancellationToken);
+                .FirstOrDefaultAsync(o => o.OnboardingId == onboardingId, cancellationToken);
         }
 
         public async Task<OnboardingRequest?> GetByReferenceAsync(string reference, CancellationToken cancellationToken = default)
@@ -82,7 +79,7 @@ namespace AfriPay.DAL.Repositories
         {
             // Use EF.Property to access the flattened Email column from ContactInfo value object
             return await _context.OnboardingRequests
-                .AnyAsync(o => o.ContactInfo.Email == email , cancellationToken);
+                .AnyAsync(o => o.ContactInfo.Email == email, cancellationToken);
         }
 
         public async Task<bool> ExistsByPhoneNumberAsync(string phoneNumber, CancellationToken cancellationToken = default)
@@ -102,19 +99,19 @@ namespace AfriPay.DAL.Repositories
                     cancellationToken);
         }
 
-       
+
 
         public async Task<OnboardingRequest?> GetByEmailAsync(string email, CancellationToken cancellationToken = default)
         {
             // Use EF.Property to access the flattened Email column
             return await _context.OnboardingRequests
-                .FirstOrDefaultAsync( o => o.ContactInfo.Email == email, cancellationToken);
+                .FirstOrDefaultAsync(o => o.ContactInfo.Email == email, cancellationToken);
         }
 
         public async Task<OnboardingRequest?> GetByPhoneNumberAsync(string phoneNumber, CancellationToken cancellationToken = default)
         {
             // Use EF.Property to access the flattened PhoneNumber column
-            
+
             return await _context.OnboardingRequests
                 .FirstOrDefaultAsync(o => o.ContactInfo.PhoneNumber == phoneNumber, cancellationToken);
         }
@@ -136,10 +133,10 @@ namespace AfriPay.DAL.Repositories
         }
 
         public async Task<OnboardingRequest?> GetByBvnAsync(string bvn, CancellationToken cancellationToken = default)
-         {
-             var bvnObj = BVN.Create(bvn);
-             return await _context.OnboardingRequests
-                 .FirstOrDefaultAsync(o => o.BVN == bvnObj, cancellationToken);
+        {
+            var bvnObj = BVN.Create(bvn);
+            return await _context.OnboardingRequests
+                .FirstOrDefaultAsync(o => o.BVN == bvnObj, cancellationToken);
         }
 
     }

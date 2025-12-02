@@ -4,7 +4,7 @@ namespace AfriPay.CORE.Enums
     /// Supported countries
     /// </summary>
     public enum Country
-    {
+{
         Nigeria = 1,
         Ghana = 2,
         Kenya = 3,

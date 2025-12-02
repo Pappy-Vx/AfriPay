@@ -1,16 +1,24 @@
 using AfriPay.API.Extensions;
 using AfriPay.API.Infrastructure;
+using AfriPay.API.Middlewares;
 using AfriPay.APP;
 using AfriPay.APP.EventHandlers;
 using AfriPay.APP.Services;
+using AfriPay.CORE.Events;
 using AfriPay.CORE.Interfaces;
+using AfriPay.DAL.BackgroundJobs;
 using AfriPay.DAL.Data;
 using AfriPay.DAL.Repositories;
+using AfriPay.DAL.Services;
+using MediatR;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi.Models;
 using Serilog;
 using Serilog.Events;
 
-// Configure Serilog
+// =====================================================================
+// SERILOG CONFIGURATION
+// =====================================================================
 Log.Logger = new LoggerConfiguration()
     .MinimumLevel.Information()
     .MinimumLevel.Override("Microsoft", LogEventLevel.Warning)
@@ -27,7 +35,6 @@ Log.Logger = new LoggerConfiguration()
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 30,
         outputTemplate: "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {Message:lj} {Properties:j}{NewLine}{Exception}")
-    .WriteTo.Seq("http://localhost:5341") // Optional: Seq for log aggregation
     .CreateLogger();
 
 try
@@ -35,94 +42,117 @@ try
     Log.Information("Starting AfriPay API");
 
     var builder = WebApplication.CreateBuilder(args);
-
-    // Use Serilog
     builder.Host.UseSerilog();
 
-    // Add controllers with filters
-    builder.Services.AddControllers();
-
-    // Add API versioning
-    builder.Services.AddApiVersioningConfiguration();
-
-    // Add Swagger
-    builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerGen(c =>
-    {
-        c.SwaggerDoc("v1", new() { Title = "AfriPay API", Version = "v1.0" });
-        c.EnableAnnotations();
-    });
-
-    //---------------------------------------------
-    // Configure Database Context
-    //---------------------------------------------
+    // =====================================================================
+    // DATABASE
+    // =====================================================================
     builder.Services.AddDbContext<AfriPayDbContext>(options =>
-        options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+        options.UseSqlServer(
+            builder.Configuration.GetConnectionString("DefaultConnection")));
 
-    // Register IApplicationDbContext
+    // =====================================================================
+    // CORE & INFRASTRUCTURE
+    // =====================================================================
     builder.Services.AddScoped<IApplicationDbContext>(provider =>
         provider.GetRequiredService<AfriPayDbContext>());
 
-    // Register Domain Event Dispatcher
-    //builder.Services.AddScoped<IDomainEventDispatcher, AfriPay.DAL.Services.DomainEventDispatcher>();
-
-    // Register Repositories
     builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
     builder.Services.AddScoped<IAccountRepository, AccountRepository>();
     builder.Services.AddScoped<IOnboardingRequestRepository, OnboardingRequestRepository>();
-
-    // Repository and Unit of Work
     builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
+    builder.Services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
 
-    // Add Application Layer Services (MediatR, FluentValidation, Behaviors)
-    builder.Services.AddApplicationServices();
-
-    // Application Services (legacy - will be replaced by MediatR)
-    builder.Services.AddScoped<IOnboardingService, OnboardingService>();
-
-    // Event Handlers
-    builder.Services.AddScoped<OnboardingRequestedHandler>();
-    builder.Services.AddScoped<BvnVerifiedForOnboardingHandler>();
-    builder.Services.AddScoped<CustomerCreatedHandler>();
-
-    // External Service Implementations
+    // =====================================================================
+    // EXTERNAL SERVICES (MOCKS FOR DEVELOPMENT)
+    // =====================================================================
     builder.Services.AddScoped<IBvnVerificationService, MockBvnVerificationService>();
-    builder.Services.AddScoped<AfriPay.CORE.Interfaces.Services.IIdentityVerificationService, AfriPay.DAL.ExternalServices.IdentityVerification.BvnVerificationService>();
     builder.Services.AddScoped<IVirtualAccountProvider, MockVirtualAccountProvider>();
     builder.Services.AddScoped<IEventPublisher, InMemoryEventPublisher>();
 
-    // Background Services
-    builder.Services.AddHostedService<AfriPay.DAL.BackgroundJobs.OnboardingWorker>();
+    // =====================================================================
+    // DOMAIN EVENT HANDLERS
+    // =====================================================================
+    builder.Services.AddTransient<INotificationHandler<OnboardingRequestedEvent>, OnboardingRequestedHandler>();
+    builder.Services.AddTransient<INotificationHandler<BvnVerifiedForOnboardingEvent>, BvnVerifiedForOnboardingHandler>();
+    builder.Services.AddTransient<INotificationHandler<CustomerCreatedEvent>, CustomerCreatedHandler>();
 
-    // CORS
-    builder.Services.AddCorsPolicy("AllowAll");
+    // =====================================================================
+    // APPLICATION SERVICES
+    // =====================================================================
+    builder.Services.AddApplicationServices(); // MediatR, FluentValidation, Behaviors
+    builder.Services.AddScoped<IOnboardingService, OnboardingService>();
 
+    // =====================================================================
+    // BACKGROUND JOBS
+    // =====================================================================
+    builder.Services.AddHostedService<OnboardingWorker>();
+
+    // =====================================================================
+    // CONTROLLERS + SWAGGER
+    // =====================================================================
+    builder.Services.AddControllers();
+    builder.Services.AddApiVersioningConfiguration();
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen(c =>
+    {
+        c.SwaggerDoc("v1", new OpenApiInfo
+        {
+            Title = "AfriPay API",
+            Version = "v1",
+            Description = "African Payments Onboarding API with Clean Architecture"
+        });
+    });
+
+    // =====================================================================
+    // BUILD APP
+    // =====================================================================
     var app = builder.Build();
 
-    // Configure the HTTP request pipeline.
-
-    // Use custom middleware (logging and exception handling)
-    app.UseCustomMiddleware();
+    // =====================================================================
+    // MIDDLEWARE PIPELINE
+    // =====================================================================
+    app.UseMiddleware<ExceptionHandlingMiddleware>();
+    app.UseMiddleware<RequestLoggingMiddleware>();
 
     if (app.Environment.IsDevelopment())
     {
         app.UseSwagger();
         app.UseSwaggerUI(c =>
         {
-            c.SwaggerEndpoint("/swagger/v1/swagger.json", "AfriPay API v1.0");
+            c.SwaggerEndpoint("/swagger/v1/swagger.json", "AfriPay API v1");
+            c.RoutePrefix = "swagger";
         });
     }
 
     app.UseHttpsRedirection();
-    app.UseCors("AllowAll");
     app.UseAuthorization();
 
+    // =====================================================================
+    // ROUTING
+    // =====================================================================
     app.MapControllers();
+    app.MapGet("/", () => "AfriPay API is running. Visit /swagger for documentation.");
 
-    Log.Information("AfriPay API started successfully");
+
+    if (app.Environment.IsDevelopment())
+    {
+        using var scope = app.Services.CreateScope();
+        var dbContext = scope.ServiceProvider.GetRequiredService<AfriPayDbContext>();
+        try
+        {
+            await dbContext.Database.MigrateAsync();
+            Log.Information("Database migrated successfully");
+        }
+        catch (Exception ex)
+        {
+            Log.Warning(ex, "Database migration failed - ensure SQL Server is running");
+        }
+    }
+
     app.Run();
 }
-catch (Exception ex)
+catch (Exception ex) when (ex is not HostAbortedException)
 {
     Log.Fatal(ex, "AfriPay API failed to start");
 }

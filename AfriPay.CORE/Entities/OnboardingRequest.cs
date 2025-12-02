@@ -56,6 +56,7 @@ namespace AfriPay.CORE.Entities
             string selfieUrl)
         {
             OnboardingId = Guid.NewGuid();
+            Id = OnboardingId; // Set base AggregateRoot.Id for event tracking
             RequestReference = $"ONB-{OnboardingId:N}".ToUpper();
             PersonalInfo = personalInfo ?? throw new ArgumentNullException(nameof(personalInfo));
             ContactInfo = contactInfo ?? throw new ArgumentNullException(nameof(contactInfo));
@@ -83,10 +84,9 @@ namespace AfriPay.CORE.Entities
             request.AddDomainEvent(new OnboardingRequestedEvent(
                 request.OnboardingId,
                 request.RequestReference,
-                request.IdentityNumber,
                 request.FirstName,
                 request.LastName,
-                request.Email
+                request.IdentityNumber
             ));
 
             return request;

@@ -1,6 +1,7 @@
 ﻿using AfriPay.CORE.Entities;
 using AfriPay.CORE.Events;
 using AfriPay.CORE.Interfaces;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -10,7 +11,7 @@ using System.Threading.Tasks;
 
 namespace AfriPay.APP.EventHandlers
 {
-    public class BvnVerifiedForOnboardingHandler
+    public class BvnVerifiedForOnboardingHandler : INotificationHandler<BvnVerifiedForOnboardingEvent>
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IEventPublisher _eventPublisher;
@@ -26,7 +27,7 @@ namespace AfriPay.APP.EventHandlers
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public async Task HandleAsync(BvnVerifiedForOnboardingEvent @event, CancellationToken cancellationToken = default)
+        public async Task Handle(BvnVerifiedForOnboardingEvent @event, CancellationToken cancellationToken)
         {
             try
             {

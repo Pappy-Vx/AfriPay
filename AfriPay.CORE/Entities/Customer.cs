@@ -45,6 +45,7 @@ namespace AfriPay.CORE.Entities
             BVN bvn)
         {
             CustomerId = CustomerId.Create();
+            Id = CustomerId; // Set base AggregateRoot.Id for event tracking
             CustomerReference = CustomerReference.Create();
             FirstName = firstName;
             LastName = lastName;

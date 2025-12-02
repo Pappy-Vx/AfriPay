@@ -84,7 +84,7 @@ namespace AfriPay.DAL.Configurations
 
             // Ignore domain events (from AggregateRoot)
             builder.Ignore(x => x.DomainEvents);
-            builder.Ignore(x => x.Id);      
+            builder.Ignore(x => x.Id);
 
             // Indexes
             builder.HasIndex(x => x.RequestReference).IsUnique();

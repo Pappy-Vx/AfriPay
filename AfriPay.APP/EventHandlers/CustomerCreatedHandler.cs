@@ -2,6 +2,7 @@
 using AfriPay.CORE.Events;
 using AfriPay.CORE.Interfaces;
 using AfriPay.CORE.ValueObjects;
+using MediatR;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -11,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace AfriPay.APP.EventHandlers
 {
-    public class CustomerCreatedHandler
+    public class CustomerCreatedHandler : INotificationHandler<CustomerCreatedEvent>
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IVirtualAccountProvider _vaProvider;
@@ -30,7 +31,7 @@ namespace AfriPay.APP.EventHandlers
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public async Task HandleAsync(CustomerCreatedEvent @event, CancellationToken cancellationToken = default)
+        public async Task Handle(CustomerCreatedEvent @event, CancellationToken cancellationToken)
         {
             try
             {
@@ -90,6 +91,12 @@ namespace AfriPay.APP.EventHandlers
 
                     _logger.LogInformation("Virtual account entity saved: {AccountId}", virtualAccount.AccountId);
 
+                    // Activate the customer now that virtual account is created
+                    customer.Activate();
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                    _logger.LogInformation("Customer activated: {CustomerReference}", customer.CustomerReference);
+
                     // Link to onboarding request
                     onboardingRequest.LinkVirtualAccount(virtualAccount.AccountId);
                     onboardingRequest.Complete();
@@ -144,103 +151,4 @@ namespace AfriPay.APP.EventHandlers
             }
         }
     }
-
-
-
-
-    //public class CustomerCreatedHandler
-    //{
-    //    private readonly IUnitOfWork _unitOfWork;
-    //    private readonly IVirtualAccountProvider _vaProvider;
-    //    private readonly IEventPublisher _eventPublisher;
-    //    private readonly ILogger<CustomerCreatedHandler> _logger;
-
-    //    public CustomerCreatedHandler(
-    //        IUnitOfWork unitOfWork,
-    //        IVirtualAccountProvider vaProvider,
-    //        IEventPublisher eventPublisher,
-    //        ILogger<CustomerCreatedHandler> logger)
-    //    {
-    //        _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
-    //        _vaProvider = vaProvider ?? throw new ArgumentNullException(nameof(vaProvider));
-    //        _eventPublisher = eventPublisher ?? throw new ArgumentNullException(nameof(eventPublisher));
-    //        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-    //    }
-
-    //    public async Task HandleAsync(CustomerCreatedEvent @event, CancellationToken cancellationToken = default)
-    //    {
-    //        try
-    //        {
-    //            _logger.LogInformation("Creating virtual account for customer: {CustomerReference}", @event.CustomerReference);
-
-    //            var customer = await _unitOfWork.Customers.GetByIdAsync(@event.CustomerId, cancellationToken);
-    //            if (customer == null)
-    //            {
-    //                _logger.LogWarning("Customer not found: {CustomerId}", @event.CustomerId);
-    //                return;
-    //            }
-
-    //            // Find associated onboarding request
-    //            var onboardingRequest = await _unitOfWork.OnboardingRequests
-    //                .GetByBvnAsync(customer.BVN.Value, cancellationToken);
-
-    //            if (onboardingRequest == null)
-    //            {
-    //                _logger.LogWarning("No onboarding request found for customer: {CustomerReference}", @event.CustomerReference);
-    //                return;
-    //            }
-
-    //            // Call virtual account provider
-    //            var vaResult = await _vaProvider.CreateVirtualAccountAsync(
-    //                @event.CustomerReference.Value,
-    //                @event.FirstName,
-    //                @event.LastName,
-    //                @event.Email,
-    //                customer.PhoneNumber,
-    //                cancellationToken
-    //            );
-
-    //            if (vaResult.IsSuccess && vaResult.Value.IsSuccess)
-    //            {
-    //                var vaResponse = vaResult.Value;
-
-    //                // Create virtual account entity
-    //                var virtualAccount = Account.CreateVirtualAccount(
-    //                    customer.CustomerId,
-    //                    AccountNumber.Create(vaResponse.AccountNumber),
-    //                    vaResponse.ProviderReference
-    //                );
-
-    //                await _unitOfWork.Accounts.AddAsync(virtualAccount, cancellationToken);
-    //                await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-    //                // Link to onboarding request
-    //                onboardingRequest.LinkVirtualAccount(virtualAccount.AccountId);
-    //                onboardingRequest.Complete();
-    //                await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-    //                // Publish events
-    //                await _eventPublisher.PublishManyAsync(virtualAccount.DomainEvents, cancellationToken);
-    //                await _eventPublisher.PublishManyAsync(onboardingRequest.DomainEvents, cancellationToken);
-
-    //                virtualAccount.ClearDomainEvents();
-    //                onboardingRequest.ClearDomainEvents();
-
-    //                _logger.LogInformation("Virtual account created: {AccountNumber} for customer: {CustomerReference}",
-    //                    vaResponse.AccountNumber, @event.CustomerReference);
-    //            }
-    //            else
-    //            {
-    //                onboardingRequest.MarkVirtualAccountCreationFailed(vaResult.Error ?? "Virtual account creation failed");
-    //                await _unitOfWork.SaveChangesAsync(cancellationToken);
-
-    //                _logger.LogWarning("Virtual account creation failed for customer: {CustomerReference}", @event.CustomerReference);
-    //            }
-    //        }
-    //        catch (Exception ex)
-    //        {
-    //            _logger.LogError(ex, "Error creating virtual account for customer: {CustomerReference}", @event.CustomerReference);
-    //        }
-    //    }
-    //}
 }

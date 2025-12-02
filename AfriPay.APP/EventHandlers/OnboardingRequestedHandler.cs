@@ -1,15 +1,11 @@
 ﻿using AfriPay.CORE.Events;
 using AfriPay.CORE.Interfaces;
+using MediatR;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AfriPay.APP.EventHandlers
 {
-    public class OnboardingRequestedHandler
+    public class OnboardingRequestedHandler : INotificationHandler<OnboardingRequestedEvent>
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IBvnVerificationService _bvnService;
@@ -28,16 +24,17 @@ namespace AfriPay.APP.EventHandlers
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        public async Task HandleAsync(OnboardingRequestedEvent @event, CancellationToken cancellationToken = default)
+
+        public async Task Handle(OnboardingRequestedEvent notification, CancellationToken cancellationToken)
         {
             try
             {
-                _logger.LogInformation("Processing onboarding request: {RequestReference}", @event.RequestReference);
+                _logger.LogInformation("Processing onboarding request: {RequestReference}", notification.RequestReference);
 
-                var request = await _unitOfWork.OnboardingRequests.GetByIdAsync(@event.OnboardingId, cancellationToken);
+                var request = await _unitOfWork.OnboardingRequests.GetByIdAsync(notification.OnboardingId, cancellationToken);
                 if (request == null)
                 {
-                    _logger.LogWarning("Onboarding request not found: {OnboardingId}", @event.OnboardingId);
+                    _logger.LogWarning("Onboarding request not found: {OnboardingId}", notification.OnboardingId);
                     return;
                 }
 
@@ -46,16 +43,16 @@ namespace AfriPay.APP.EventHandlers
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 // Call BVN verification service (only if it's a BVN)
-                if (@event.IdentityNumber is not AfriPay.CORE.ValueObjects.BVN bvn)
+                if (notification.IdentityNumber is not AfriPay.CORE.ValueObjects.BVN bvn)
                 {
-                    _logger.LogInformation("Skipping BVN verification - identity type is {IdentityType}", @event.IdentityNumber.GetType().Name);
+                    _logger.LogInformation("Skipping BVN verification - identity type is {IdentityType}", notification.IdentityNumber.GetType().Name);
                     return;
                 }
 
                 var verificationResult = await _bvnService.VerifyBvnAsync(
                     bvn.Value,
-                    @event.FirstName,
-                    @event.LastName,
+                    notification.FirstName,
+                    notification.LastName,
                     cancellationToken
                 );
 
@@ -67,21 +64,20 @@ namespace AfriPay.APP.EventHandlers
                     await _eventPublisher.PublishManyAsync(request.DomainEvents, cancellationToken);
                     request.ClearDomainEvents();
 
-                    _logger.LogInformation("BVN verified for onboarding: {RequestReference}", @event.RequestReference);
+                    _logger.LogInformation("BVN verified for onboarding: {RequestReference}", notification.RequestReference);
                 }
                 else
                 {
                     request.MarkBvnVerificationFailed(verificationResult.Error ?? "BVN verification failed");
                     await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-                    _logger.LogWarning("BVN verification failed for: {RequestReference}", @event.RequestReference);
+                    _logger.LogWarning("BVN verification failed for: {RequestReference}", notification.RequestReference);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error processing onboarding request: {RequestReference}", @event.RequestReference);
+                _logger.LogError(ex, "Error processing onboarding request: {RequestReference}", notification.RequestReference);
             }
         }
     }
-
 }
