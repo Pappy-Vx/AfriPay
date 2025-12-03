@@ -33,8 +33,8 @@ namespace AfriPay.DAL.Repositories
         public async Task<OnboardingRequest?> GetByReferenceAsync(string reference, CancellationToken cancellationToken = default)
         {
             return await _context.OnboardingRequests
-                .Include(o => o.Customer)
-                .Include(o => o.VirtualAccount)
+                //.Include(o => o.Customer)
+                //.Include(o => o.VirtualAccount)
                 //.Include(o => o.IdentityVerification)
                 //.Include(o => o.AmlScreening)
                 //.Include(o => o.ManualReviewCases)
