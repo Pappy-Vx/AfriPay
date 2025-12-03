@@ -27,12 +27,12 @@ namespace AfriPay.DAL.Configurations
                 .IsRequired();
 
             builder.Property(c => c.CustomerReference)
-.HasConversion(
-cr => cr.Value,
-value => CustomerReference.Create(value))
-.HasColumnName("CustomerReference")
-.HasMaxLength(50)
-.IsRequired();
+                .HasConversion(
+                    cr => cr.Value,
+                    value => CustomerReference.Create(value))
+                .HasColumnName("CustomerReference")
+                .HasMaxLength(50)
+                .IsRequired();
 
             builder.Property(c => c.FirstName)
                 .HasMaxLength(100)
@@ -42,7 +42,26 @@ value => CustomerReference.Create(value))
                 .HasMaxLength(100)
                 .IsRequired();
 
-            // Option A: If you have ContactInfo as a value object, configure it as owned
+            // =====================================================================
+            // AUTHENTICATION PROPERTIES
+            // =====================================================================
+
+            // Password hash for authentication
+            builder.Property(c => c.PasswordHash)
+                .HasColumnName("PasswordHash")
+                .HasMaxLength(500)
+                .IsRequired();
+
+            // Account active status
+            builder.Property(c => c.IsActive)
+                .HasColumnName("IsActive")
+                .IsRequired()
+                .HasDefaultValue(true);
+
+            // =====================================================================
+            // CONTACT INFORMATION (OWNED ENTITY)
+            // =====================================================================
+
             builder.OwnsOne(c => c.ContactInfo, ci =>
             {
                 ci.Property(x => x.Email)
@@ -56,7 +75,10 @@ value => CustomerReference.Create(value))
                     .IsRequired();
             });
 
-            // Configure Address as owned entity
+            // =====================================================================
+            // ADDRESS (OWNED ENTITY)
+            // =====================================================================
+
             builder.OwnsOne(c => c.Address, addr =>
             {
                 addr.Property(a => a.Street)
@@ -88,26 +110,14 @@ value => CustomerReference.Create(value))
             });
 
 
-            builder.OwnsOne(c => c.UserTag, tag =>
-            {
-                tag.Property(t => t.Value)
-                    .HasColumnName("UserTag")
-                    .HasMaxLength(20);
-
-                tag.Property(t => t.NormalizedTag)
-                    .HasColumnName("NormalizedUserTag")
-                    .HasMaxLength(20);
-
-                tag.HasIndex(t => t.NormalizedTag)
-                    .IsUnique()
-                    .HasFilter("[NormalizedUserTag] IS NOT NULL");
-            });
-
-            builder.Property(c => c.UserTagSetAt)
-                .HasColumnName("UserTagSetAt");
-
             // Fixed BVN conversion with proper column name
-            builder.Property(c => c.BVN).HasConversion(bvn => bvn.Value, value => BVN.Create(value)).HasColumnName("BVN").HasMaxLength(11).IsRequired();
+            builder.Property(c => c.BVN)
+.HasConversion(
+bvn => bvn.Value,
+value => BVN.Create(value))
+.HasColumnName("BVN")
+.HasMaxLength(11)
+.IsRequired();
 
             //builder.Property(c => c.BVN)
             //    .HasColumnName("BVN")
@@ -119,34 +129,73 @@ value => CustomerReference.Create(value))
 
 
             builder.Property(c => c.IsBvnVerified)
-                .IsRequired();
+                .HasColumnName("IsBvnVerified")
+                .IsRequired()
+                .HasDefaultValue(false);
+
+            // =====================================================================
+            // AUDIT FIELDS
+            // =====================================================================
 
             builder.Property(c => c.CreatedAt)
+                .HasColumnName("CreatedAt")
                 .IsRequired();
 
-            builder.Property(c => c.IsActive)
-                .IsRequired();
+            // =====================================================================
+            // INDEXES
+            // =====================================================================
 
-            // Indexes
-            builder.HasIndex(c => c.Email).IsUnique();
-            builder.HasIndex("BVN").IsUnique();
-            builder.HasIndex("CustomerReference").IsUnique();
+            // Unique index on Email for fast lookup and uniqueness
+            builder.HasIndex(c => c.Email)
+                .IsUnique()
+                .HasDatabaseName("IX_Customers_Email");
 
-            // Relationships - use shadow properties for foreign keys
+            // Unique index on BVN
+            builder.HasIndex("BVN")
+                .IsUnique()
+                .HasDatabaseName("IX_Customers_BVN");
+
+            // Unique index on CustomerReference
+            builder.HasIndex("CustomerReference")
+                .IsUnique()
+                .HasDatabaseName("IX_Customers_CustomerReference");
+
+            // Index on IsActive for filtering active customers
+            builder.HasIndex(c => c.IsActive)
+                .HasDatabaseName("IX_Customers_IsActive");
+
+            // Composite index for authentication queries (Email + IsActive)
+            builder.HasIndex(c => new { c.Email, c.IsActive })
+                .HasDatabaseName("IX_Customers_Email_IsActive");
+
+            // =====================================================================
+            // RELATIONSHIPS
+            // =====================================================================
+
+            // One-to-many: Customer -> Accounts
             builder.HasMany(c => c.Accounts)
                 .WithOne(a => a.Customer)
                 .HasForeignKey("CustomerId")
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // One-to-many: Customer -> OnboardingRequests
             builder.HasMany(c => c.OnboardingRequests)
                 .WithOne(o => o.Customer)
                 .HasForeignKey("CustomerId")
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // Ignore domain events and Id property from base class
+            // =====================================================================
+            // IGNORED PROPERTIES
+            // =====================================================================
+
+            // Ignore domain events (not persisted)
             builder.Ignore(c => c.DomainEvents);
+
+            // Ignore base class Id property (using CustomerId instead)
             builder.Ignore(c => c.Id);
+
+            // Ignore computed Email property (mapped from ContactInfo.Email)
+            builder.Ignore(c => c.Email);
         }
     }
-
 }

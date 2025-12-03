@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AfriPay.DAL.Migrations
 {
     [DbContext(typeof(AfriPayDbContext))]
-    [Migration("20251203093044_UpdateUserTagWithNormalizedColumn")]
-    partial class UpdateUserTagWithNormalizedColumn
+    [Migration("20251202193847_init8")]
+    partial class init8
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -165,7 +165,8 @@ namespace AfriPay.DAL.Migrations
                         .HasColumnName("BVN");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime2")
+                        .HasColumnName("CreatedAt");
 
                     b.Property<string>("CustomerReference")
                         .IsRequired()
@@ -173,25 +174,33 @@ namespace AfriPay.DAL.Migrations
                         .HasColumnType("nvarchar(50)")
                         .HasColumnName("CustomerReference");
 
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("IsActive");
 
                     b.Property<bool>("IsBvnVerified")
-                        .HasColumnType("bit");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false)
+                        .HasColumnName("IsBvnVerified");
 
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("PasswordHash");
 
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
@@ -203,26 +212,21 @@ namespace AfriPay.DAL.Migrations
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<DateTime?>("UserTagSetAt")
-                        .HasColumnType("datetime2")
-                        .HasColumnName("UserTagSetAt");
-
                     b.HasKey("CustomerId");
 
                     b.HasIndex("BVN")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_Customers_BVN");
 
                     b.HasIndex("CustomerReference")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_Customers_CustomerReference");
 
-                    b.HasIndex("Email")
-                        .IsUnique();
+                    b.HasIndex("IsActive")
+                        .HasDatabaseName("IX_Customers_IsActive");
 
                     b.ToTable("Customers", null, t =>
                         {
-                            t.Property("Email")
-                                .HasColumnName("Customer_Email");
-
                             t.Property("PhoneNumber")
                                 .HasColumnName("Customer_PhoneNumber");
                         });
@@ -551,40 +555,9 @@ namespace AfriPay.DAL.Migrations
                                 .HasForeignKey("CustomerId");
                         });
 
-                    b.OwnsOne("AfriPay.CORE.ValueObjects.UserTag", "UserTag", b1 =>
-                        {
-                            b1.Property<Guid>("CustomerId")
-                                .HasColumnType("uniqueidentifier");
-
-                            b1.Property<string>("NormalizedTag")
-                                .IsRequired()
-                                .HasMaxLength(30)
-                                .HasColumnType("nvarchar(30)")
-                                .HasColumnName("NormalizedUserTag");
-
-                            b1.Property<string>("Value")
-                                .IsRequired()
-                                .HasMaxLength(30)
-                                .HasColumnType("nvarchar(30)")
-                                .HasColumnName("UserTag");
-
-                            b1.HasKey("CustomerId");
-
-                            b1.HasIndex("NormalizedTag")
-                                .IsUnique()
-                                .HasFilter("[NormalizedUserTag] IS NOT NULL");
-
-                            b1.ToTable("Customers");
-
-                            b1.WithOwner()
-                                .HasForeignKey("CustomerId");
-                        });
-
                     b.Navigation("Address");
 
                     b.Navigation("ContactInfo");
-
-                    b.Navigation("UserTag");
                 });
 
             modelBuilder.Entity("AfriPay.CORE.Entities.IdentityVerification", b =>
