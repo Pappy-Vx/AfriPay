@@ -26,9 +26,11 @@ namespace AfriPay.APP.Onboarding.Commands.StartOnboarding
                 .Matches(@"^\+?\d{10,15}$").WithMessage("Invalid phone number format");
 
             RuleFor(x => x.DateOfBirth)
-                .NotEmpty()
-                .LessThan(DateTime.UtcNow.AddYears(-18))
-                .WithMessage("Must be at least 18 years old");
+.NotEmpty()
+.LessThan(DateTime.UtcNow.AddYears(-18))
+.WithMessage("Must be at least 18 years old")
+.GreaterThanOrEqualTo(DateTime.UtcNow.AddYears(-100))
+.WithMessage("Must not be older than 100 years");
 
             RuleFor(x => x.IdentityNumber)
                 .NotEmpty().WithMessage("Identity number is required");

@@ -1,0 +1,10 @@
+﻿namespace AfriPay.CORE.Enums;
+
+public enum TransferStatus
+{
+    Pending = 1,
+    Processing = 2,
+    Completed = 3,
+    Failed = 4,
+    Reversed = 5
+}

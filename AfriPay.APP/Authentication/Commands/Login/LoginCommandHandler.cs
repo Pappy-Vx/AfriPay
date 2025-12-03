@@ -41,22 +41,22 @@ namespace AfriPay.APP.Authentication.Commands.Login
             CancellationToken cancellationToken)
         {
             _logger.LogInformation(
-                "Login attempt for email: {Email}",
-                request.Email);
+                "Login attempt for UserTag: {UserTag}",
+                request.UserTag);
 
-            // Find customer by email
-            var customer = await _customerRepository.GetByEmailAsync(
-                request.Email,
-                cancellationToken);
+            
+
+            //Find customer by UserTag
+            var customer = await _customerRepository.GetByUserTagAsync(request.UserTag, cancellationToken);
 
             if (customer == null)
             {
                 _logger.LogWarning(
                     "Login failed - customer not found: {Email}",
-                    request.Email);
+                    request.UserTag);
 
                 return Result<LoginResponse>.Failure(
-                    "Invalid email or password");
+                    "Invalid usertag or password");
             }
 
             // Check if customer is active
