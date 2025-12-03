@@ -79,7 +79,7 @@ namespace AfriPay.API.Controllers
         /// **Response:**
         /// - 200 OK: Onboarding started successfully with reference ID.
         /// - 400 Bad Request: Validation errors or onboarding failure.
-        /// - 500 Internal Server Error: Unexpected server issues.
+        /// - 500 Internal Server Error: Unexpected server issue.
         /// </remarks>
         /// <param name="request">The onboarding request details including customer information.</param>
         /// <param name="cancellationToken">Cancellation token for the async operation.</param>
