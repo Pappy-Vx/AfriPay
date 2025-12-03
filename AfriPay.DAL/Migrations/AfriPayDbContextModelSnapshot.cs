@@ -162,7 +162,8 @@ namespace AfriPay.DAL.Migrations
                         .HasColumnName("BVN");
 
                     b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
+                        .HasColumnType("datetime2")
+                        .HasColumnName("CreatedAt");
 
                     b.Property<string>("CustomerReference")
                         .IsRequired()
@@ -170,25 +171,33 @@ namespace AfriPay.DAL.Migrations
                         .HasColumnType("nvarchar(50)")
                         .HasColumnName("CustomerReference");
 
-                    b.Property<string>("Email")
-                        .IsRequired()
-                        .HasColumnType("nvarchar(450)");
-
                     b.Property<string>("FirstName")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
                     b.Property<bool>("IsActive")
-                        .HasColumnType("bit");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(true)
+                        .HasColumnName("IsActive");
 
                     b.Property<bool>("IsBvnVerified")
-                        .HasColumnType("bit");
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("bit")
+                        .HasDefaultValue(false)
+                        .HasColumnName("IsBvnVerified");
 
                     b.Property<string>("LastName")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<string>("PasswordHash")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("nvarchar(500)")
+                        .HasColumnName("PasswordHash");
 
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
@@ -207,19 +216,18 @@ namespace AfriPay.DAL.Migrations
                     b.HasKey("CustomerId");
 
                     b.HasIndex("BVN")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_Customers_BVN");
 
                     b.HasIndex("CustomerReference")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasDatabaseName("IX_Customers_CustomerReference");
 
-                    b.HasIndex("Email")
-                        .IsUnique();
+                    b.HasIndex("IsActive")
+                        .HasDatabaseName("IX_Customers_IsActive");
 
                     b.ToTable("Customers", null, t =>
                         {
-                            t.Property("Email")
-                                .HasColumnName("Customer_Email");
-
                             t.Property("PhoneNumber")
                                 .HasColumnName("Customer_PhoneNumber");
                         });
