@@ -1,4 +1,5 @@
 using AfriPay.API.Extensions;
+using AfriPay.API.Hubs;
 using AfriPay.API.Infrastructure;
 using AfriPay.API.Middlewares;
 using AfriPay.APP;
@@ -58,6 +59,8 @@ try
     builder.Services.AddScoped<ICustomerRepository, CustomerRepository>();
     builder.Services.AddScoped<IAccountRepository, AccountRepository>();
     builder.Services.AddScoped<IOnboardingRequestRepository, OnboardingRequestRepository>();
+    builder.Services.AddScoped<ITransferRepository, TransferRepository>();
+    builder.Services.AddScoped<ITransactionRepository, TransactionRepository>();
     builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
     builder.Services.AddScoped<IDomainEventDispatcher, DomainEventDispatcher>();
     // =====================================================================
@@ -77,6 +80,9 @@ try
     builder.Services.AddTransient<INotificationHandler<OnboardingRequestedEvent>, OnboardingRequestedHandler>();
     builder.Services.AddTransient<INotificationHandler<BvnVerifiedForOnboardingEvent>, BvnVerifiedForOnboardingHandler>();
     builder.Services.AddTransient<INotificationHandler<CustomerCreatedEvent>, CustomerCreatedHandler>();
+    builder.Services.AddTransient<INotificationHandler<TransferInitiatedEvent>, TransferInitiatedEventHandler>();
+    builder.Services.AddTransient<INotificationHandler<TransferCompletedEvent>, TransferCompletedEventHandler>();
+    builder.Services.AddTransient<INotificationHandler<TransferFailedEvent>, TransferFailedEventHandler>();
     // =====================================================================
     // APPLICATION SERVICES
     // =====================================================================
@@ -256,6 +262,8 @@ try
     // =====================================================================
     app.MapControllers();
     app.MapGet("/", () => "AfriPay API is running. Visit /swagger for documentation.");
+    // Map SignalR hub
+    //app.MapHub<AccountBalanceHub>("/hubs/account");
     if (app.Environment.IsDevelopment())
     {
         using var scope = app.Services.CreateScope();

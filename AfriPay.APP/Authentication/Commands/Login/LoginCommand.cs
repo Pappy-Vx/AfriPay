@@ -16,12 +16,12 @@ namespace AfriPay.APP.Authentication.Commands.Login
     public class LoginCommand : IRequest<Result<LoginResponse>>
     {
         /// <summary>
-        /// Customer email address (must be valid email format)
+        /// Customer usertag address (must be valid email format)
         /// </summary>
-        /// <example>john.doe@example.com</example>
-        [Required(ErrorMessage = "Email is required")]
-        [EmailAddress(ErrorMessage = "Invalid email format")]
-        public string Email { get; set; } = string.Empty;
+        /// <example>John</example>
+        [Required(ErrorMessage = "UserTag is required")]
+        [MinLength(3,ErrorMessage = "UserTag must be at least 3 Characters")]
+        public string UserTag { get; set; } = string.Empty;
 
         /// <summary>
         /// Customer password (minimum 8 characters)

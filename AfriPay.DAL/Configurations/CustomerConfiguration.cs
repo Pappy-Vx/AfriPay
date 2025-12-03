@@ -109,6 +109,25 @@ namespace AfriPay.DAL.Configurations
                 addr.Ignore(a => a.FullAddress);
             });
 
+            builder.OwnsOne(c => c.UserTag, tag =>
+            {
+                tag.Property(t => t.Value)
+                    .HasColumnName("UserTag")
+                    .HasMaxLength(20);
+
+                tag.Property(t => t.NormalizedTag)
+                    .HasColumnName("NormalizedUserTag")
+                    .HasMaxLength(20);
+
+                tag.HasIndex(t => t.NormalizedTag)
+                    .IsUnique()
+                    .HasFilter("[NormalizedUserTag] IS NOT NULL");
+            });
+
+            builder.Property(c => c.UserTagSetAt)
+                .HasColumnName("UserTagSetAt");
+
+
 
             // Fixed BVN conversion with proper column name
             builder.Property(c => c.BVN)

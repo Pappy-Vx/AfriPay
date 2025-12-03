@@ -11,13 +11,13 @@ namespace AfriPay.APP.Authentication.Commands.Login
     {
         public LoginCommandValidator()
         {
-            RuleFor(x => x.Email)
+            RuleFor(x => x.UserTag)
                 .NotEmpty()
-                .WithMessage("Email is required")
-                .EmailAddress()
-                .WithMessage("Invalid email format")
-                .MaximumLength(255)
-                .WithMessage("Email must not exceed 255 characters");
+                .WithMessage("UserTag is required")
+                .MinimumLength(3)
+                .WithMessage("Invalid UserTag format")
+                .MaximumLength(30)
+                .WithMessage("UserTag must not exceed 30 characters");
 
             RuleFor(x => x.Password)
                 .NotEmpty()
