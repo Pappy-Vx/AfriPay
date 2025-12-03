@@ -1,8 +1,6 @@
 using AfriPay.CORE.ValueObjects.AfriPay.CORE.ValueObjects;
 using System.Text.RegularExpressions;
 
-using System.Text.RegularExpressions;
-
 namespace AfriPay.CORE.ValueObjects
 {
     /// <summary>

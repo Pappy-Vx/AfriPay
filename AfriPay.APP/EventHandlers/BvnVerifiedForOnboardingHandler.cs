@@ -38,7 +38,7 @@ public class BvnVerifiedForOnboardingHandler : INotificationHandler<BvnVerifiedF
                 return;
             }
 
-            // 2. Create customer
+            // 2. Create customer (UserTag will be set later by user after onboarding)
             _logger.LogInformation("Creating customer for: {FirstName} {LastName}", request.FirstName, request.LastName);
 
             var customer = Customer.Create(

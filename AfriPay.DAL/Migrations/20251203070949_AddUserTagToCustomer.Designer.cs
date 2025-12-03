@@ -4,6 +4,7 @@ using AfriPay.DAL.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AfriPay.DAL.Migrations
 {
     [DbContext(typeof(AfriPayDbContext))]
-    partial class AfriPayDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251203070949_AddUserTagToCustomer")]
+    partial class AddUserTagToCustomer
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -553,23 +556,17 @@ namespace AfriPay.DAL.Migrations
                             b1.Property<Guid>("CustomerId")
                                 .HasColumnType("uniqueidentifier");
 
-                            b1.Property<string>("NormalizedTag")
-                                .IsRequired()
-                                .HasMaxLength(30)
-                                .HasColumnType("nvarchar(30)")
-                                .HasColumnName("NormalizedUserTag");
-
                             b1.Property<string>("Value")
                                 .IsRequired()
-                                .HasMaxLength(30)
-                                .HasColumnType("nvarchar(30)")
+                                .HasMaxLength(20)
+                                .HasColumnType("nvarchar(20)")
                                 .HasColumnName("UserTag");
 
                             b1.HasKey("CustomerId");
 
-                            b1.HasIndex("NormalizedTag")
+                            b1.HasIndex("Value")
                                 .IsUnique()
-                                .HasFilter("[NormalizedUserTag] IS NOT NULL");
+                                .HasFilter("[UserTag] IS NOT NULL");
 
                             b1.ToTable("Customers");
 

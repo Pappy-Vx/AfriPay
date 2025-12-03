@@ -1,6 +1,7 @@
 ﻿using AfriPay.CORE.Common;
 using AfriPay.CORE.Interfaces;
 using AfriPay.DAL.Data;
+using Microsoft.EntityFrameworkCore.Storage;
 
 namespace AfriPay.DAL.Repositories;
 
@@ -12,6 +13,9 @@ public class UnitOfWork : IUnitOfWork
     private ICustomerRepository? _customers;
     private IAccountRepository? _accounts;
     private IOnboardingRequestRepository? _onboardingRequests;
+    private ITransferRepository? _transfers;
+    private ITransactionRepository? _transactions;
+    private IDbContextTransaction? _currentTransaction;
 
     public UnitOfWork(AfriPayDbContext context, IDomainEventDispatcher eventDispatcher)
     {
@@ -22,6 +26,8 @@ public class UnitOfWork : IUnitOfWork
     public ICustomerRepository Customers => _customers ??= new CustomerRepository(_context);
     public IAccountRepository Accounts => _accounts ??= new AccountRepository(_context);
     public IOnboardingRequestRepository OnboardingRequests => _onboardingRequests ??= new OnboardingRequestRepository(_context);
+    public ITransferRepository Transfers => _transfers ??= new TransferRepository(_context);
+    public ITransactionRepository Transactions => _transactions ??= new TransactionRepository(_context);
 
     public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
     {
@@ -67,6 +73,31 @@ public class UnitOfWork : IUnitOfWork
     {
         var result = await SaveChangesAsync(cancellationToken);
         return result > 0;
+    }
+
+    public async Task BeginTransactionAsync(CancellationToken cancellationToken = default)
+    {
+        _currentTransaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+    }
+
+    public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
+    {
+        if (_currentTransaction != null)
+        {
+            await _currentTransaction.CommitAsync(cancellationToken);
+            await _currentTransaction.DisposeAsync();
+            _currentTransaction = null;
+        }
+    }
+
+    public async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
+    {
+        if (_currentTransaction != null)
+        {
+            await _currentTransaction.RollbackAsync(cancellationToken);
+            await _currentTransaction.DisposeAsync();
+            _currentTransaction = null;
+        }
     }
 
     public void Dispose()

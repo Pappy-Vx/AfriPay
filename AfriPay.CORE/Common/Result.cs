@@ -39,5 +39,8 @@ namespace AfriPay.CORE.Common
         {
             Value = value;
         }
+
+        public static Result<T> Success(T value) => new(value, true, string.Empty);
+        public new static Result<T> Failure(string error) => new(default, false, error);
     }
 }

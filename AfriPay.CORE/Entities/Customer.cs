@@ -17,6 +17,9 @@ namespace AfriPay.CORE.Entities
         public string PhoneNumber { get; private set; }
         public BVN BVN { get; private set; }
 
+        public UserTag? UserTag { get; private set; }
+        public DateTime? UserTagSetAt { get; private set; }
+
         // Enhanced value objects (optional for future use)
         public PersonalInfo? PersonalInfo { get; private set; }
         public ContactInfo? ContactInfo { get; private set; }
@@ -52,6 +55,8 @@ namespace AfriPay.CORE.Entities
             Email = email;
             PhoneNumber = phoneNumber;
             BVN = bvn;
+            UserTag = null; // Will be set later by user
+            UserTagSetAt = null;
             IsBvnVerified = false;
             CreatedAt = DateTime.UtcNow;
             IsActive = true;
@@ -116,6 +121,24 @@ namespace AfriPay.CORE.Entities
                 throw new ArgumentNullException(nameof(request));
 
             _onboardingRequests.Add(request);
+        }
+
+        // SetUserTag: Set UserTag for the first time, or update within 7 days
+        public Result SetUserTag(UserTag userTag)
+        {
+            if (userTag == null)
+                return Result.Failure("UserTag cannot be null.");
+
+            // If UserTag already set, only allow change within 7 days
+            if (UserTag != null && DateTime.UtcNow > CreatedAt.AddDays(7))
+                return Result.Failure("UserTag can only be changed within 7 days of account creation.");
+
+            UserTag = userTag;
+            UserTagSetAt = DateTime.UtcNow;
+
+            AddDomainEvent(new UserTagSetEvent(CustomerId, userTag));
+
+            return Result.Success();
         }
 
         public void Activate()

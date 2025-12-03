@@ -3,11 +3,6 @@ using AfriPay.CORE.Interfaces;
 using AfriPay.CORE.ValueObjects;
 using AfriPay.DAL.Data;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace AfriPay.DAL.Repositories
 {
@@ -28,7 +23,7 @@ namespace AfriPay.DAL.Repositories
         {
             return await _context.Customers
                 .Include(c => c.Accounts)
-                .FirstOrDefaultAsync(c => c.ContactInfo.Email == email, cancellationToken);
+                .FirstOrDefaultAsync(c => c.ContactInfo!.Email == email, cancellationToken);
         }
         public async Task<Customer?> GetByBvnAsync(string bvn, CancellationToken cancellationToken = default)
         {
@@ -67,6 +62,19 @@ namespace AfriPay.DAL.Repositories
         {
             var bvnObj = BVN.Create(bvn);
             return await _context.Customers.AnyAsync(c => c.BVN == bvnObj, cancellationToken);
+        }
+        public async Task<Customer?> GetByUserTagAsync(string userTag, CancellationToken cancellationToken = default)
+        {
+            var normalizedTag = userTag.TrimStart('@', '$').ToUpperInvariant();
+            return await _context.Customers
+                .FirstOrDefaultAsync(c => c.UserTag != null && c.UserTag.NormalizedTag
+                 == normalizedTag, cancellationToken);
+        }
+        public async Task<bool> IsUserTagAvailableAsync(string userTag, CancellationToken cancellationToken = default)
+        {
+            var normalizedTag = userTag.TrimStart('@', '$').ToUpperInvariant();
+            return !await _context.Customers
+                .AnyAsync(c => c.UserTag != null && c.UserTag.NormalizedTag == normalizedTag, cancellationToken);
         }
     }
 

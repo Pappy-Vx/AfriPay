@@ -19,5 +19,7 @@ namespace AfriPay.CORE.Interfaces
         Task UpdateAsync(Customer customer, CancellationToken cancellationToken = default);
         Task<bool> ExistsByEmailAsync(string email, CancellationToken cancellationToken = default);
         Task<bool> ExistsByBvnAsync(string bvn, CancellationToken cancellationToken = default);
+        Task<bool> IsUserTagAvailableAsync(string userTag, CancellationToken cancellationToken = default);
+        Task<Customer?> GetByUserTagAsync(string userTag, CancellationToken cancellationToken = default);
     }
 }

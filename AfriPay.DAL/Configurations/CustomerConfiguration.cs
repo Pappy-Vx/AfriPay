@@ -26,13 +26,6 @@ namespace AfriPay.DAL.Configurations
                 .ValueGeneratedNever()
                 .IsRequired();
 
-            //builder.Property(c => c.CustomerReference)
-            //    .HasConversion(
-            //        cr => cr.Value,
-            //        value => CustomerReference.Create(value))
-            //    .HasMaxLength(50)
-            //    .IsRequired();
-
             builder.Property(c => c.CustomerReference)
 .HasConversion(
 cr => cr.Value,
@@ -95,14 +88,26 @@ value => CustomerReference.Create(value))
             });
 
 
+            builder.OwnsOne(c => c.UserTag, tag =>
+            {
+                tag.Property(t => t.Value)
+                    .HasColumnName("UserTag")
+                    .HasMaxLength(20);
+
+                tag.Property(t => t.NormalizedTag)
+                    .HasColumnName("NormalizedUserTag")
+                    .HasMaxLength(20);
+
+                tag.HasIndex(t => t.NormalizedTag)
+                    .IsUnique()
+                    .HasFilter("[NormalizedUserTag] IS NOT NULL");
+            });
+
+            builder.Property(c => c.UserTagSetAt)
+                .HasColumnName("UserTagSetAt");
+
             // Fixed BVN conversion with proper column name
-            builder.Property(c => c.BVN)
-.HasConversion(
-bvn => bvn.Value,
-value => BVN.Create(value))
-.HasColumnName("BVN")
-.HasMaxLength(11)
-.IsRequired();
+            builder.Property(c => c.BVN).HasConversion(bvn => bvn.Value, value => BVN.Create(value)).HasColumnName("BVN").HasMaxLength(11).IsRequired();
 
             //builder.Property(c => c.BVN)
             //    .HasColumnName("BVN")
