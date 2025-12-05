@@ -3,151 +3,368 @@ using AfriPay.APP.Transfers.Queries.GetTransferById;
 using AfriPay.APP.Transfers.Queries.GetTransferHistory;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Swashbuckle.AspNetCore.Annotations;
 
-namespace AfriPay.API.Controllers;
-
-[ApiController]
-[Route("api/v1/[controller]")]
-public class TransferController : ControllerBase
+namespace AfriPay.API.Controllers
 {
-    private readonly IMediator _mediator;
-    private readonly ILogger<TransferController> _logger;
-
-    public TransferController(IMediator mediator, ILogger<TransferController> logger)
-    {
-        _mediator = mediator;
-        _logger = logger;
-    }
-
     /// <summary>
-    /// Initiate a new transfer between accounts
+    /// Controller for managing transfers between accounts. This includes initiating transfers and retrieving transfer details and history.
+    /// All endpoints require proper authentication if configured in the API.
     /// </summary>
-    /// <param name="request">Transfer initiation request</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Transfer ID and reference</returns>
-    [HttpPost]
-    public async Task<IActionResult> InitiateTransfer(
-        [FromBody] InitiateTransferRequest request,
-        CancellationToken cancellationToken)
+    [ApiController]
+    [Route("api/v{version:apiVersion}/[controller]")]
+    [ApiVersion("1.0")]
+    public class TransferController : ControllerBase
     {
-        _logger.LogInformation("Transfer request received from account {SourceAccountId} to {DestinationAccountId}, Amount: {Amount}",
-            request.SourceAccountId, request.DestinationAccountId, request.Amount);
+        private readonly IMediator _mediator;
+        private readonly ILogger<TransferController> _logger;
 
-        var command = new InitiateTransferCommand(
-            request.SourceAccountId,
-            request.DestinationAccountId,
-            request.DestinationUserTag,
-            request.Amount,
-            request.Currency,
-            request.Description,
-            request.IdempotencyKey
-        );
-
-        var result = await _mediator.Send(command, cancellationToken);
-
-        if (!result.IsSuccess)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="TransferController"/> class.
+        /// </summary>
+        /// <param name="mediator">The MediatR mediator for sending commands and queries.</param>
+        /// <param name="logger">The logger for the controller.</param>
+        public TransferController(IMediator mediator, ILogger<TransferController> logger)
         {
-            _logger.LogWarning("Transfer initiation failed: {Error}", result.Error);
-            return BadRequest(new { error = result.Error });
+            _mediator = mediator ?? throw new ArgumentNullException(nameof(mediator));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        // Get the full transfer details to return
-        var transferQuery = new GetTransferByIdQuery(result.Value);
-        var transferResult = await _mediator.Send(transferQuery, cancellationToken);
-
-        if (transferResult.IsSuccess)
+        /// <summary>
+        /// Initiates a new transfer between accounts.
+        /// </summary>
+        /// <remarks>
+        /// This endpoint starts a transfer process from the source account to the destination account or user tag.
+        ///
+        /// **Request Body (InitiateTransferRequest):**
+        /// - SourceAccountId: The GUID of the source account (required).
+        /// - DestinationAccountId: The GUID of the destination account (optional if DestinationUserTag is provided).
+        /// - DestinationUserTag: The user tag of the destination (optional if DestinationAccountId is provided, e.g., "@johndoe").
+        /// - Amount: The transfer amount (required, decimal, must be positive).
+        /// - Currency: The currency code (optional, default: "NGN").
+        /// - Description: A description or narration for the transfer (optional, string).
+        /// - IdempotencyKey: A unique key to prevent duplicate transfers (optional, string).
+        ///
+        /// **Validation Notes:**
+        /// - Either DestinationAccountId or DestinationUserTag must be provided, but not both.
+        /// - Amount must be greater than 0.
+        /// - Source and destination must be valid and have sufficient balance.
+        /// - Invalid requests will result in 400 Bad Request.
+        ///
+        /// **Sample Request:**
+        /// ```json
+        /// POST /api/v1/transfer
+        /// {
+        ///   "sourceAccountId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        ///   "destinationAccountId": "3fa85f64-5717-4562-b3fc-2c963f66afa7",
+        ///   "amount": 500.00,
+        ///   "currency": "NGN",
+        ///   "description": "Payment for services",
+        ///   "idempotencyKey": "unique-key-123"
+        /// }
+        /// ```
+        ///
+        /// **Sample Success Response (200 OK):**
+        /// ```json
+        /// {
+        ///   "message": "Transfer initiated successfully",
+        ///   "transfer": {
+        ///     "transferId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        ///     "reference": "TXN-20251203-A1B2C3D4",
+        ///     "status": "Completed",
+        ///     "amount": 500.00,
+        ///     "currency": "NGN",
+        ///     "createdAt": "2025-12-04T10:30:00Z"
+        ///   }
+        /// }
+        /// ```
+        ///
+        /// **Response:**
+        /// - 200 OK: Transfer initiated successfully with details.
+        /// - 400 Bad Request: Validation errors or insufficient balance.
+        /// - 500 Internal Server Error: Unexpected server issue.
+        /// </remarks>
+        /// <param name="request">The transfer initiation request details.</param>
+        /// <param name="cancellationToken">Cancellation token for the async operation.</param>
+        /// <returns>Returns the transfer response with details on success, or error details.</returns>
+        /// <response code="200">Transfer initiated successfully</response>
+        /// <response code="400">Bad request - validation errors or transfer failure</response>
+        /// <response code="500">Internal server error - unexpected system error</response>
+        [HttpPost]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        [SwaggerOperation(
+            Summary = "Initiate a new transfer between accounts",
+            OperationId = "InitiateTransfer",
+            Tags = new[] { "Transfer" }
+        )]
+        public async Task<IActionResult> InitiateTransfer(
+            [FromBody] InitiateTransferRequest request,
+            CancellationToken cancellationToken)
         {
+            _logger.LogInformation("Transfer request received from account {SourceAccountId} to {DestinationAccountId}, Amount: {Amount}",
+                request.SourceAccountId, request.DestinationAccountId, request.Amount);
+            var command = new InitiateTransferCommand(
+                request.SourceAccountId,
+                request.DestinationAccountId,
+                request.DestinationUserTag,
+                request.Amount,
+                request.Currency,
+                request.Description,
+                request.IdempotencyKey
+            );
+            var result = await _mediator.Send(command, cancellationToken);
+            if (!result.IsSuccess)
+            {
+                _logger.LogWarning("Transfer initiation failed: {Error}", result.Error);
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Transfer Failed",
+                    Detail = result.Error,
+                    Status = StatusCodes.Status400BadRequest,
+                    Instance = HttpContext.Request.Path
+                });
+            }
+            // Get the full transfer details to return
+            var transferQuery = new GetTransferByIdQuery(result.Value);
+            var transferResult = await _mediator.Send(transferQuery, cancellationToken);
+            if (transferResult.IsSuccess)
+            {
+                return Ok(new
+                {
+                    message = "Transfer initiated successfully",
+                    transfer = transferResult.Value
+                });
+            }
+            // Fallback if we can't fetch the transfer details
             return Ok(new
             {
                 message = "Transfer initiated successfully",
-                transfer = transferResult.Value
+                transferId = result.Value
             });
         }
 
-        // Fallback if we can't fetch the transfer details
-        return Ok(new
+        /// <summary>
+        /// Retrieves the details of a specific transfer by ID.
+        /// </summary>
+        /// <remarks>
+        /// This endpoint fetches the details of a transfer using the provided transfer ID.
+        ///
+        /// **Path Parameter:**
+        /// - id: The unique GUID identifier for the transfer (required).
+        ///
+        /// **Sample Request:**
+        /// ```
+        /// GET /api/v1/transfer/{id}
+        /// ```
+        ///
+        /// **Sample Success Response (200 OK):**
+        /// ```json
+        /// {
+        ///   "transferId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        ///   "reference": "TXN-20251203-A1B2C3D4",
+        ///   "sourceAccountId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        ///   "destinationAccountId": "3fa85f64-5717-4562-b3fc-2c963f66afa7",
+        ///   "amount": 500.00,
+        ///   "currency": "NGN",
+        ///   "status": "Completed",
+        ///   "createdAt": "2025-12-04T10:30:00Z"
+        /// }
+        /// ```
+        ///
+        /// **Response:**
+        /// - 200 OK: Transfer details returned.
+        /// - 404 Not Found: Transfer not found.
+        /// - 500 Internal Server Error: Unexpected server issue.
+        /// </remarks>
+        /// <param name="id">The GUID of the transfer to retrieve.</param>
+        /// <param name="cancellationToken">Cancellation token for the async operation.</param>
+        /// <returns>Returns the transfer details on success, or error if not found.</returns>
+        /// <response code="200">Transfer details retrieved successfully</response>
+        /// <response code="404">Transfer not found</response>
+        /// <response code="500">Internal server error - unexpected system error</response>
+        [HttpGet("{id:guid}")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        [SwaggerOperation(
+            Summary = "Get transfer details by ID",
+            OperationId = "GetTransferById",
+            Tags = new[] { "Transfer" }
+        )]
+        public async Task<IActionResult> GetTransfer(
+            Guid id,
+            CancellationToken cancellationToken)
         {
-            message = "Transfer initiated successfully",
-            transferId = result.Value
-        });
-    }
+            var query = new GetTransferByIdQuery(id);
+            var result = await _mediator.Send(query, cancellationToken);
+            if (!result.IsSuccess)
+                return NotFound(new ProblemDetails
+                {
+                    Title = "Transfer Not Found",
+                    Detail = result.Error,
+                    Status = StatusCodes.Status404NotFound,
+                    Instance = HttpContext.Request.Path
+                });
+            return Ok(result.Value);
+        }
 
-    /// <summary>
-    /// Get transfer details by ID
-    /// </summary>
-    /// <param name="id">Transfer ID</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Transfer details</returns>
-    [HttpGet("{id:guid}")]
-    public async Task<IActionResult> GetTransfer(
-        Guid id,
-        CancellationToken cancellationToken)
-    {
-        var query = new GetTransferByIdQuery(id);
-        var result = await _mediator.Send(query, cancellationToken);
-
-        if (!result.IsSuccess)
-            return NotFound(new { error = result.Error });
-
-        return Ok(result.Value);
-    }
-
-    /// <summary>
-    /// Get transfer history for a customer
-    /// </summary>
-    /// <param name="customerId">Customer ID</param>
-    /// <param name="page">Page number (default: 1)</param>
-    /// <param name="pageSize">Page size (default: 50, max: 100)</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>List of transfers</returns>
-    [HttpGet("customer/{customerId:guid}")]
-    public async Task<IActionResult> GetTransferHistory(
-        Guid customerId,
-        [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 50,
-        CancellationToken cancellationToken = default)
-    {
-        // Validate pagination
-        if (page < 1)
-            page = 1;
-
-        if (pageSize < 1 || pageSize > 100)
-            pageSize = 50;
-
-        var query = new GetTransferHistoryQuery(customerId, page, pageSize);
-        var transfers = await _mediator.Send(query, cancellationToken);
-
-        return Ok(new
+        /// <summary>
+        /// Retrieves the transfer history for a specific customer.
+        /// </summary>
+        /// <remarks>
+        /// This endpoint fetches a paginated list of transfers associated with the given customer ID.
+        ///
+        /// **Path Parameter:**
+        /// - customerId: The unique GUID identifier for the customer (required).
+        ///
+        /// **Query Parameters:**
+        /// - page: The page number to retrieve (default: 1).
+        /// - pageSize: The number of transfers per page (default: 50, max: 100).
+        ///
+        /// **Sample Request:**
+        /// ```
+        /// GET /api/v1/transfer/customer/{customerId}?page=1&amp;pageSize=50
+        /// ```
+        ///
+        /// **Sample Success Response (200 OK):**
+        /// ```json
+        /// {
+        ///   "page": 1,
+        ///   "pageSize": 50,
+        ///   "count": 2,
+        ///   "transfers": [
+        ///     {
+        ///       "transferId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        ///       "reference": "TXN-20251203-A1B2C3D4",
+        ///       "amount": 500.00,
+        ///       "currency": "NGN",
+        ///       "status": "Completed",
+        ///       "createdAt": "2025-12-04T10:30:00Z"
+        ///     }
+        ///   ]
+        /// }
+        /// ```
+        ///
+        /// **Validation Notes:**
+        /// - Page must be at least 1.
+        /// - PageSize must be between 1 and 100.
+        ///
+        /// **Response:**
+        /// - 200 OK: Transfer history returned successfully.
+        /// - 500 Internal Server Error: Unexpected server issue.
+        /// </remarks>
+        /// <param name="customerId">The GUID of the customer to retrieve transfer history for.</param>
+        /// <param name="page">The page number (default: 1).</param>
+        /// <param name="pageSize">The page size (default: 50, max: 100).</param>
+        /// <param name="cancellationToken">Cancellation token for the async operation.</param>
+        /// <returns>Returns a paginated list of transfers.</returns>
+        /// <response code="200">Transfer history retrieved successfully</response>
+        /// <response code="500">Internal server error - unexpected system error</response>
+        [HttpGet("customer/{customerId:guid}")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        [SwaggerOperation(
+            Summary = "Get transfer history for a customer",
+            OperationId = "GetTransferHistory",
+            Tags = new[] { "Transfer" }
+        )]
+        public async Task<IActionResult> GetTransferHistory(
+            Guid customerId,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 50,
+            CancellationToken cancellationToken = default)
         {
-            page,
-            pageSize,
-            count = transfers.Count,
-            transfers
-        });
+            // Validate pagination
+            if (page < 1)
+                page = 1;
+            if (pageSize < 1 || pageSize > 100)
+                pageSize = 50;
+            var query = new GetTransferHistoryQuery(customerId, page, pageSize);
+            var transfers = await _mediator.Send(query, cancellationToken);
+            return Ok(new
+            {
+                page,
+                pageSize,
+                count = transfers.Count,
+                transfers
+            });
+        }
+
+        /// <summary>
+        /// Retrieves the details of a transfer by reference number.
+        /// </summary>
+        /// <remarks>
+        /// This endpoint fetches the details of a transfer using the provided reference number.
+        ///
+        /// **Path Parameter:**
+        /// - reference: The unique reference string for the transfer (required, e.g., "TXN-20251203-A1B2C3D4").
+        ///
+        /// **Sample Request:**
+        /// ```
+        /// GET /api/v1/transfer/reference/{reference}
+        /// ```
+        ///
+        /// **Sample Success Response (200 OK):**
+        /// ```json
+        /// {
+        ///   "transferId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        ///   "reference": "TXN-20251203-A1B2C3D4",
+        ///   "sourceAccountId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        ///   "destinationAccountId": "3fa85f64-5717-4562-b3fc-2c963f66afa7",
+        ///   "amount": 500.00,
+        ///   "currency": "NGN",
+        ///   "status": "Completed",
+        ///   "createdAt": "2025-12-04T10:30:00Z"
+        /// }
+        /// ```
+        ///
+        /// **Response:**
+        /// - 200 OK: Transfer details returned.
+        /// - 404 Not Found: Transfer not found.
+        /// - 500 Internal Server Error: Unexpected server issue.
+        /// - 501 Not Implemented: Feature not yet available.
+        /// </remarks>
+        /// <param name="reference">The reference string of the transfer to retrieve.</param>
+        /// <param name="cancellationToken">Cancellation token for the async operation.</param>
+        /// <returns>Returns the transfer details on success, or error if not found.</returns>
+        /// <response code="200">Transfer details retrieved successfully</response>
+        /// <response code="404">Transfer not found</response>
+        /// <response code="500">Internal server error - unexpected system error</response>
+        /// <response code="501">Not implemented</response>
+        [HttpGet("reference/{reference}")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status501NotImplemented)]
+        [SwaggerOperation(
+            Summary = "Get transfer by reference number",
+            OperationId = "GetTransferByReference",
+            Tags = new[] { "Transfer" }
+        )]
+        public async Task<IActionResult> GetTransferByReference(
+            string reference,
+            CancellationToken cancellationToken)
+        {
+            // This would require a new query, for now return not implemented
+            return StatusCode(501, new ProblemDetails
+            {
+                Title = "Not Implemented",
+                Detail = "GetByReference not yet implemented",
+                Status = StatusCodes.Status501NotImplemented,
+                Instance = HttpContext.Request.Path
+            });
+        }
     }
 
-    /// <summary>
-    /// Get transfer by reference number
-    /// </summary>
-    /// <param name="reference">Transfer reference (e.g., TXN-20251203-A1B2C3D4)</param>
-    /// <param name="cancellationToken">Cancellation token</param>
-    /// <returns>Transfer details</returns>
-    [HttpGet("reference/{reference}")]
-    public async Task<IActionResult> GetTransferByReference(
-        string reference,
-        CancellationToken cancellationToken)
-    {
-        // This would require a new query, for now return not implemented
-        return StatusCode(501, new { message = "GetByReference not yet implemented" });
-    }
+    public record InitiateTransferRequest(
+        Guid SourceAccountId,
+        Guid DestinationAccountId,
+        string? DestinationUserTag,
+        decimal Amount,
+        string? Currency,
+        string? Description,
+        string? IdempotencyKey
+    );
 }
-
-public record InitiateTransferRequest(
-    Guid SourceAccountId,
-    Guid DestinationAccountId,
-    string? DestinationUserTag,
-    decimal Amount,
-    string? Currency,
-    string? Description,
-    string? IdempotencyKey
-);

@@ -136,6 +136,66 @@ namespace AfriPay.CORE.Entities
             return Result.Failure(reason);
         }
 
+        // Ghana Card Verification Methods
+        public void MarkGhanaCardVerificationPending()
+        {
+            Status = OnboardingStatus.BvnVerificationPending; // Reusing same status for identity verification
+        }
+
+        public Result MarkGhanaCardVerified()
+        {
+            if (Status != OnboardingStatus.BvnVerificationPending)
+                return Result.Failure("Invalid status transition");
+
+            Status = OnboardingStatus.BvnVerified; // Reusing same status for identity verification
+
+            if (IdentityNumber is not GhanaCard ghanaCard)
+                return Result.Failure("Identity number is not a Ghana Card");
+
+            AddDomainEvent(new GhanaCardVerifiedForOnboardingEvent(OnboardingId, ghanaCard));
+
+            return Result.Success();
+        }
+
+        public Result MarkGhanaCardVerificationFailed(string reason)
+        {
+            Status = OnboardingStatus.BvnVerificationFailed; // Reusing same status for identity verification
+            FailureReason = reason;
+            CompletedAt = DateTime.UtcNow;
+
+            return Result.Failure(reason);
+        }
+
+        // Kenya National ID Verification Methods
+        public void MarkKenyaIdVerificationPending()
+        {
+            Status = OnboardingStatus.BvnVerificationPending; // Reusing same status for identity verification
+        }
+
+        public Result MarkKenyaIdVerified()
+        {
+            if (Status != OnboardingStatus.BvnVerificationPending)
+                return Result.Failure("Invalid status transition");
+
+            Status = OnboardingStatus.BvnVerified; // Reusing same status for identity verification
+
+            if (IdentityNumber is not KenyaNationalID kenyaId)
+                return Result.Failure("Identity number is not a Kenya National ID");
+
+            AddDomainEvent(new KenyaIdVerifiedForOnboardingEvent(OnboardingId, kenyaId));
+
+            return Result.Success();
+        }
+
+        public Result MarkKenyaIdVerificationFailed(string reason)
+        {
+            Status = OnboardingStatus.BvnVerificationFailed; // Reusing same status for identity verification
+            FailureReason = reason;
+            CompletedAt = DateTime.UtcNow;
+
+            return Result.Failure(reason);
+        }
+
         public void LinkCustomer(CustomerId customerId)
         {
             if (Status != OnboardingStatus.BvnVerified)

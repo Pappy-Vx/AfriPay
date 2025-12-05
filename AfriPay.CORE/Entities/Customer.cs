@@ -2,6 +2,7 @@ using AfriPay.CORE.Common;
 using AfriPay.CORE.Enums;
 using AfriPay.CORE.Events;
 using AfriPay.CORE.ValueObjects;
+using AfriPay.CORE.ValueObjects.AfriPay.CORE.ValueObjects;
 
 namespace AfriPay.CORE.Entities
 {
@@ -15,7 +16,15 @@ namespace AfriPay.CORE.Entities
         public string LastName { get; private set; }
         public string Email { get; private set; }
         public string PhoneNumber { get; private set; }
-        public BVN BVN { get; private set; }
+
+        // Multi-country identity support
+        public string IdentityNumber { get; private set; } // Stores the actual identity number (BVN, Ghana Card, Kenya ID, etc.)
+        public IdentityType IdentityType { get; private set; } // Enum: BVN, GhanaCard, KenyaNationalID, etc.
+        public bool IsIdentityVerified { get; private set; }
+
+        // Deprecated - kept for backward compatibility
+        //[Obsolete("Use IdentityNumber and IdentityType instead")]
+        //public BVN? BVN { get; private set; }
 
         public string PasswordHash { get; private set; } = string.Empty;
 
@@ -27,6 +36,7 @@ namespace AfriPay.CORE.Entities
         public ContactInfo? ContactInfo { get; private set; }
         public Address? Address { get; private set; }
 
+        [Obsolete("Use IsIdentityVerified instead")]
         public bool IsBvnVerified { get; private set; }
         public DateTime CreatedAt { get; private set; }
         public DateTime? UpdatedAt { get; private set; }
@@ -48,7 +58,8 @@ namespace AfriPay.CORE.Entities
             string email,
             string phoneNumber,
             string passwordHash,
-            BVN bvn)
+            string identityNumber,
+            IdentityType identityType)
         {
             CustomerId = CustomerId.Create();
             Id = CustomerId; // Set base AggregateRoot.Id for event tracking
@@ -58,24 +69,31 @@ namespace AfriPay.CORE.Entities
             Email = email;
             PhoneNumber = phoneNumber;
             PasswordHash = passwordHash;
-            BVN = bvn;
+            IdentityNumber = identityNumber;
+            IdentityType = identityType;
             UserTag = null; // Will be set later by user
             UserTagSetAt = null;
-            IsBvnVerified = false;
+            IsIdentityVerified = false;
+            IsBvnVerified = false; // Kept for backward compatibility
+            //BVN = null; // Deprecated field
             CreatedAt = DateTime.UtcNow;
             IsActive = true;
             Status = CustomerStatus.PendingActivation;
         }
 
+        /// <summary>
+        /// Creates a new customer with identity verification
+        /// Supports multiple identity types: BVN (Nigeria), Ghana Card, Kenya National ID, etc.
+        /// </summary>
         public static Customer Create(
-    string firstName,
-    string lastName,
-    string email,
-    string phoneNumber,
-    string passwordHash,
-    BVN bvn)
+            string firstName,
+            string lastName,
+            string email,
+            string phoneNumber,
+            string passwordHash,
+            IdentityNumber identity)
         {
-            // Validation (unchanged)
+            // Validation
             if (string.IsNullOrWhiteSpace(firstName))
                 throw new ArgumentException("First name is required", nameof(firstName));
             if (string.IsNullOrWhiteSpace(lastName))
@@ -83,11 +101,37 @@ namespace AfriPay.CORE.Entities
             if (string.IsNullOrWhiteSpace(email))
                 throw new ArgumentException("Email is required", nameof(email));
             if (string.IsNullOrWhiteSpace(passwordHash))
-                throw new ArgumentException("Password", nameof(passwordHash));
+                throw new ArgumentException("Password is required", nameof(passwordHash));
             if (string.IsNullOrWhiteSpace(phoneNumber))
                 throw new ArgumentException("Phone number is required", nameof(phoneNumber));
+            if (identity == null)
+                throw new ArgumentNullException(nameof(identity));
 
-            var customer = new Customer(firstName, lastName, email, phoneNumber, passwordHash, bvn);
+            // Determine identity type from the IdentityNumber value object
+            var identityType = identity switch
+            {
+                BVN => IdentityType.BVN,
+                GhanaCard => IdentityType.GhanaCard,
+                KenyaNationalID => IdentityType.KenyaNationalID,
+                _ => throw new ArgumentException($"Unsupported identity type: {identity.GetType().Name}")
+            };
+
+            var customer = new Customer(
+                firstName,
+                lastName,
+                email,
+                phoneNumber,
+                passwordHash,
+                identity.Value,
+                identityType);
+
+//            // Backward compatibility: Set BVN if identity is BVN
+//            if (identity is BVN bvn)
+//            {
+//#pragma warning disable CS0618 // Type or member is obsolete
+//                customer.BVN = bvn;
+//#pragma warning restore CS0618
+//            }
 
             // Initialize ContactInfo to sync with flat properties
             customer.UpdateContactInfo(new ContactInfo(email, phoneNumber));
@@ -97,11 +141,22 @@ namespace AfriPay.CORE.Entities
                 customer.CustomerReference,
                 customer.FirstName,
                 customer.LastName,
-                customer.ContactInfo.Email  // Now safe; ContactInfo is set
+                customer.ContactInfo.Email
             ));
 
             return customer;
         }
+
+    //    public static Customer Create(
+    //string firstName,
+    //string lastName,
+    //string email,
+    //string phoneNumber,
+    //string passwordHash,
+    //GhanaCard ghanaCard)
+    //    {
+    //        // implementation...
+    //    }
 
         //public static Customer Create(
         //    string firstName,
@@ -140,16 +195,16 @@ namespace AfriPay.CORE.Entities
         //    return customer;
         //}
 
-        public void VerifyBvn()
-        {
-            if (IsBvnVerified)
-                throw new InvalidOperationException("BVN already verified");
+        //public void VerifyBvn()
+        //{
+        //    if (IsBvnVerified)
+        //        throw new InvalidOperationException("BVN already verified");
 
-            IsBvnVerified = true;
-            UpdatedAt = DateTime.UtcNow;
+        //    IsBvnVerified = true;
+        //    UpdatedAt = DateTime.UtcNow;
 
-            AddDomainEvent(new BvnVerifiedEvent(CustomerId, BVN));
-        }
+        //    AddDomainEvent(new BvnVerifiedEvent(CustomerId, BVN));
+        //}
 
         public void AddAccount(Account account)
         {
@@ -183,6 +238,26 @@ namespace AfriPay.CORE.Entities
             AddDomainEvent(new UserTagSetEvent(CustomerId, userTag));
 
             return Result.Success();
+        }
+
+        /// <summary>
+        /// Marks the customer's primary identity document as verified.
+        /// For backward compatibility, this also updates IsBvnVerified when the identity type is BVN.
+        /// </summary>
+        public void MarkIdentityVerified()
+        {
+            if (IsIdentityVerified)
+                throw new InvalidOperationException("Identity already verified");
+
+            IsIdentityVerified = true;
+
+            // Preserve legacy BVN flag semantics for existing consumers
+            if (IdentityType == IdentityType.BVN)
+            {
+                IsBvnVerified = true;
+            }
+
+            UpdatedAt = DateTime.UtcNow;
         }
 
         public void Activate()

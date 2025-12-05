@@ -67,6 +67,8 @@ try
     // EXTERNAL SERVICES (MOCKS FOR DEVELOPMENT)
     // =====================================================================
     builder.Services.AddScoped<IBvnVerificationService, MockBvnVerificationService>();
+    builder.Services.AddScoped<IGhanaCardVerificationService, MockGhanaCardVerificationService>();
+    builder.Services.AddScoped<IKenyaNationalIdVerificationService, MockKenyaNationalIdVerificationService>();
     builder.Services.AddScoped<IVirtualAccountProvider, MockVirtualAccountProvider>();
     builder.Services.AddScoped<IEventPublisher, InMemoryEventPublisher>();
     // =====================================================================
@@ -79,6 +81,8 @@ try
     // =====================================================================
     builder.Services.AddTransient<INotificationHandler<OnboardingRequestedEvent>, OnboardingRequestedHandler>();
     builder.Services.AddTransient<INotificationHandler<BvnVerifiedForOnboardingEvent>, BvnVerifiedForOnboardingHandler>();
+    builder.Services.AddTransient<INotificationHandler<GhanaCardVerifiedForOnboardingEvent>, GhanaCardVerifiedForOnboardingHandler>();
+    builder.Services.AddTransient<INotificationHandler<KenyaIdVerifiedForOnboardingEvent>, KenyaIdVerifiedForOnboardingHandler>();
     builder.Services.AddTransient<INotificationHandler<CustomerCreatedEvent>, CustomerCreatedHandler>();
     builder.Services.AddTransient<INotificationHandler<TransferInitiatedEvent>, TransferInitiatedEventHandler>();
     builder.Services.AddTransient<INotificationHandler<TransferCompletedEvent>, TransferCompletedEventHandler>();
