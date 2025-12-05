@@ -1,4 +1,4 @@
-﻿using AfriPay.APP.Services;
+using AfriPay.APP.Services;
 using AfriPay.CORE.Entities;
 using AfriPay.CORE.Enums;
 using AfriPay.CORE.Events;
@@ -9,18 +9,22 @@ using Microsoft.Extensions.Logging;
 
 namespace AfriPay.APP.EventHandlers;
 
-public class BvnVerifiedForOnboardingHandler : INotificationHandler<BvnVerifiedForOnboardingEvent>
+/// <summary>
+/// Event handler for Kenya National ID verification completion
+/// Creates customer and virtual account after successful Kenya ID verification
+/// </summary>
+public class KenyaIdVerifiedForOnboardingHandler : INotificationHandler<KenyaIdVerifiedForOnboardingEvent>
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IVirtualAccountProvider _virtualAccountProvider;
-    private readonly ILogger<BvnVerifiedForOnboardingHandler> _logger;
+    private readonly ILogger<KenyaIdVerifiedForOnboardingHandler> _logger;
     private readonly IPasswordHasher _passwordHasher;
 
-    public BvnVerifiedForOnboardingHandler(
+    public KenyaIdVerifiedForOnboardingHandler(
         IUnitOfWork unitOfWork,
         IVirtualAccountProvider virtualAccountProvider,
         IPasswordHasher passwordHasher,
-        ILogger<BvnVerifiedForOnboardingHandler> logger)
+        ILogger<KenyaIdVerifiedForOnboardingHandler> logger)
     {
         _unitOfWork = unitOfWork ?? throw new ArgumentNullException(nameof(unitOfWork));
         _passwordHasher = passwordHasher ?? throw new ArgumentNullException(nameof(passwordHasher));
@@ -28,11 +32,11 @@ public class BvnVerifiedForOnboardingHandler : INotificationHandler<BvnVerifiedF
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task Handle(BvnVerifiedForOnboardingEvent notification, CancellationToken cancellationToken)
+    public async Task Handle(KenyaIdVerifiedForOnboardingEvent notification, CancellationToken cancellationToken)
     {
         try
         {
-            _logger.LogInformation("Processing BVN verified event for onboarding: {OnboardingId}", notification.OnboardingId);
+            _logger.LogInformation("Processing Kenya National ID verified event for onboarding: {OnboardingId}", notification.OnboardingId);
 
             // 1. Get onboarding request
             var request = await _unitOfWork.OnboardingRequests.GetByIdAsync(notification.OnboardingId, cancellationToken);
@@ -42,20 +46,19 @@ public class BvnVerifiedForOnboardingHandler : INotificationHandler<BvnVerifiedF
                 return;
             }
 
-            // 2. Create customer (UserTag will be set later by user after onboarding)
-            _logger.LogInformation("Creating customer for: {FirstName} {LastName}", request.FirstName, request.LastName);
+            // 2. Create customer with Kenya National ID as the primary identity document
+            _logger.LogInformation("Creating customer for: {FirstName} {LastName} (Kenya)", request.FirstName, request.LastName);
             var password = _passwordHasher.HashPassword("Password123");
 
-            // Create customer using the verified BVN as the primary identity document
             var customer = Customer.Create(
                 request.FirstName,
                 request.LastName,
                 request.ContactInfo.Email,
                 request.ContactInfo.PhoneNumber,
                 password,
-                notification.BVN);
+                notification.KenyaNationalId);
 
-            customer.MarkIdentityVerified();
+            customer.MarkIdentityVerified(); // Marks identity as verified for Kenya
             await _unitOfWork.Customers.AddAsync(customer, cancellationToken);
 
             // 3. Link customer to onboarding request
@@ -65,7 +68,7 @@ public class BvnVerifiedForOnboardingHandler : INotificationHandler<BvnVerifiedF
             request.MarkVirtualAccountCreationPending();
 
             // 5. Create virtual account via provider
-            _logger.LogInformation("Creating virtual account for customer: {CustomerId}", customer.CustomerId.Value);
+            _logger.LogInformation("Creating virtual account for customer: {CustomerId} (Kenya)", customer.CustomerId.Value);
 
             var virtualAccountResult = await _virtualAccountProvider.CreateVirtualAccountAsync(
                 customer.CustomerReference.Value,
@@ -79,7 +82,7 @@ public class BvnVerifiedForOnboardingHandler : INotificationHandler<BvnVerifiedF
             {
                 var virtualAccount = virtualAccountResult.Value;
 
-                // 6. Create account entity using the correct factory method
+                // 6. Create account entity
                 var account = Account.CreateVirtualAccount(
                     customerId: customer.CustomerId,
                     accountNumber: AccountNumber.Create(virtualAccount.AccountNumber),
@@ -94,25 +97,25 @@ public class BvnVerifiedForOnboardingHandler : INotificationHandler<BvnVerifiedF
                 request.Complete();
 
                 _logger.LogInformation(
-                    "Virtual account created: {AccountNumber}, Provider: {ProviderReference}",
+                    "Virtual account created for Kenya customer: {AccountNumber}, Provider: {ProviderReference}",
                     virtualAccount.AccountNumber,
                     virtualAccount.ProviderReference);
             }
             else
             {
                 request.MarkVirtualAccountCreationFailed(virtualAccountResult.Error ?? "Unknown error");
-                _logger.LogError("Failed to create virtual account: {Error}", virtualAccountResult.Error);
+                _logger.LogError("Failed to create virtual account for Kenya customer: {Error}", virtualAccountResult.Error);
             }
 
             // 9. Save all changes - automatically dispatches domain events
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            _logger.LogInformation("Onboarding completed for: {OnboardingId}, Status: {Status}",
+            _logger.LogInformation("Onboarding completed for Kenya customer: {OnboardingId}, Status: {Status}",
                 notification.OnboardingId, request.Status);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error processing BVN verified event for onboarding: {OnboardingId}", notification.OnboardingId);
+            _logger.LogError(ex, "Error processing Kenya National ID verified event for onboarding: {OnboardingId}", notification.OnboardingId);
             throw;
         }
     }

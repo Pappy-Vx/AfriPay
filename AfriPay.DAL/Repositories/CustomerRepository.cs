@@ -1,4 +1,5 @@
 ﻿using AfriPay.CORE.Entities;
+using AfriPay.CORE.Enums;
 using AfriPay.CORE.Interfaces;
 using AfriPay.CORE.ValueObjects;
 using AfriPay.DAL.Data;
@@ -27,10 +28,12 @@ namespace AfriPay.DAL.Repositories
         }
         public async Task<Customer?> GetByBvnAsync(string bvn, CancellationToken cancellationToken = default)
         {
-            var bvnObj = BVN.Create(bvn);
+            // BVN is now represented by IdentityNumber + IdentityType (BVN) for multi-country support
             return await _context.Customers
                 .Include(c => c.Accounts)
-                .FirstOrDefaultAsync(c => c.BVN == bvnObj, cancellationToken);
+                .FirstOrDefaultAsync(
+                    c => c.IdentityNumber == bvn && c.IdentityType == IdentityType.BVN,
+                    cancellationToken);
         }
         public async Task<Customer?> GetByReferenceAsync(string reference, CancellationToken cancellationToken = default)
         {
@@ -60,8 +63,10 @@ namespace AfriPay.DAL.Repositories
         }
         public async Task<bool> ExistsByBvnAsync(string bvn, CancellationToken cancellationToken = default)
         {
-            var bvnObj = BVN.Create(bvn);
-            return await _context.Customers.AnyAsync(c => c.BVN == bvnObj, cancellationToken);
+            // BVN is now represented by IdentityNumber + IdentityType (BVN) for multi-country support
+            return await _context.Customers.AnyAsync(
+                c => c.IdentityNumber == bvn && c.IdentityType == IdentityType.BVN,
+                cancellationToken);
         }
         public async Task<Customer?> GetByUserTagAsync(string userTag, CancellationToken cancellationToken = default)
         {
