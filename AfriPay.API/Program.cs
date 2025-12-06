@@ -71,6 +71,7 @@ try
     builder.Services.AddScoped<IKenyaNationalIdVerificationService, MockKenyaNationalIdVerificationService>();
     builder.Services.AddScoped<IVirtualAccountProvider, MockVirtualAccountProvider>();
     builder.Services.AddScoped<IEventPublisher, InMemoryEventPublisher>();
+    builder.Services.AddScoped<IPapssService, MockPapssService>();
     // =====================================================================
     // AUTHENTICATION SERVICES
     // =====================================================================
@@ -87,6 +88,7 @@ try
     builder.Services.AddTransient<INotificationHandler<TransferInitiatedEvent>, TransferInitiatedEventHandler>();
     builder.Services.AddTransient<INotificationHandler<TransferCompletedEvent>, TransferCompletedEventHandler>();
     builder.Services.AddTransient<INotificationHandler<TransferFailedEvent>, TransferFailedEventHandler>();
+    builder.Services.AddTransient<INotificationHandler<PapssSettlementCompletedNotification>, PapssSettlementCompletedEventHandler>();
     // =====================================================================
     // APPLICATION SERVICES
     // =====================================================================

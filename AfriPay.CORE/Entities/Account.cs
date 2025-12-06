@@ -32,14 +32,19 @@ namespace AfriPay.CORE.Entities
             AccountNumber accountNumber,
             AccountType accountType,
             CustomerId customerId,
-            string? providerReference = null)
+            string? providerReference = null,
+            string? currency = null)
         {
+            var accountCurrency = string.IsNullOrWhiteSpace(currency)
+                ? "NGN"
+                : currency.Trim().ToUpperInvariant();
+
             AccountId = AccountId.Create();
             AccountNumber = accountNumber;
             AccountType = accountType;
             CustomerId = customerId;
-            Balance = new Money(0);
-            ReservedBalance = new Money(0);
+            Balance = Money.ZeroWithCurrency(accountCurrency);
+            ReservedBalance = Money.ZeroWithCurrency(accountCurrency);
             DateOpened = DateTime.UtcNow;
             IsActive = true;
             ProviderReference = providerReference;
@@ -54,13 +59,15 @@ namespace AfriPay.CORE.Entities
         public static Account CreateVirtualAccount(
             CustomerId customerId,
             AccountNumber accountNumber,
-            string providerReference)
+            string providerReference,
+            string currency = "NGN")
         {
             var account = new Account(
                 accountNumber: accountNumber,
                 accountType: AccountType.Virtual,
                 customerId: customerId,
-                providerReference: providerReference
+                providerReference: providerReference,
+                currency: currency
             );
 
             account.AddDomainEvent(new VirtualAccountCreatedEvent(

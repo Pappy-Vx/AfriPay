@@ -44,7 +44,7 @@ public class BvnVerifiedForOnboardingHandler : INotificationHandler<BvnVerifiedF
 
             // 2. Create customer (UserTag will be set later by user after onboarding)
             _logger.LogInformation("Creating customer for: {FirstName} {LastName}", request.FirstName, request.LastName);
-            var password = _passwordHasher.HashPassword("Password123");
+            //var password = _passwordHasher.HashPassword("Password123");
 
             // Create customer using the verified BVN as the primary identity document
             var customer = Customer.Create(
@@ -52,7 +52,7 @@ public class BvnVerifiedForOnboardingHandler : INotificationHandler<BvnVerifiedF
                 request.LastName,
                 request.ContactInfo.Email,
                 request.ContactInfo.PhoneNumber,
-                password,
+                //password,
                 notification.BVN);
 
             customer.MarkIdentityVerified();
@@ -83,7 +83,8 @@ public class BvnVerifiedForOnboardingHandler : INotificationHandler<BvnVerifiedF
                 var account = Account.CreateVirtualAccount(
                     customerId: customer.CustomerId,
                     accountNumber: AccountNumber.Create(virtualAccount.AccountNumber),
-                    providerReference: virtualAccount.ProviderReference);
+                    providerReference: virtualAccount.ProviderReference,
+                    currency: "NGN");
 
                 await _unitOfWork.Accounts.AddAsync(account, cancellationToken);
 

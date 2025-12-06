@@ -57,7 +57,7 @@ namespace AfriPay.CORE.Entities
             string lastName,
             string email,
             string phoneNumber,
-            string passwordHash,
+            //string passwordHash,
             string identityNumber,
             IdentityType identityType)
         {
@@ -68,7 +68,7 @@ namespace AfriPay.CORE.Entities
             LastName = lastName;
             Email = email;
             PhoneNumber = phoneNumber;
-            PasswordHash = passwordHash;
+            //PasswordHash = passwordHash;
             IdentityNumber = identityNumber;
             IdentityType = identityType;
             UserTag = null; // Will be set later by user
@@ -90,7 +90,7 @@ namespace AfriPay.CORE.Entities
             string lastName,
             string email,
             string phoneNumber,
-            string passwordHash,
+            //string passwordHash,
             IdentityNumber identity)
         {
             // Validation
@@ -100,8 +100,8 @@ namespace AfriPay.CORE.Entities
                 throw new ArgumentException("Last name is required", nameof(lastName));
             if (string.IsNullOrWhiteSpace(email))
                 throw new ArgumentException("Email is required", nameof(email));
-            if (string.IsNullOrWhiteSpace(passwordHash))
-                throw new ArgumentException("Password is required", nameof(passwordHash));
+            //if (string.IsNullOrWhiteSpace(passwordHash))
+            //    throw new ArgumentException("Password is required", nameof(passwordHash));
             if (string.IsNullOrWhiteSpace(phoneNumber))
                 throw new ArgumentException("Phone number is required", nameof(phoneNumber));
             if (identity == null)
@@ -121,7 +121,7 @@ namespace AfriPay.CORE.Entities
                 lastName,
                 email,
                 phoneNumber,
-                passwordHash,
+                //passwordHash,
                 identity.Value,
                 identityType);
 

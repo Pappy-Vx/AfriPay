@@ -48,14 +48,14 @@ public class KenyaIdVerifiedForOnboardingHandler : INotificationHandler<KenyaIdV
 
             // 2. Create customer with Kenya National ID as the primary identity document
             _logger.LogInformation("Creating customer for: {FirstName} {LastName} (Kenya)", request.FirstName, request.LastName);
-            var password = _passwordHasher.HashPassword("Password123");
+            //var password = _passwordHasher.HashPassword("Password123");
 
             var customer = Customer.Create(
                 request.FirstName,
                 request.LastName,
                 request.ContactInfo.Email,
                 request.ContactInfo.PhoneNumber,
-                password,
+                //password,
                 notification.KenyaNationalId);
 
             customer.MarkIdentityVerified(); // Marks identity as verified for Kenya
@@ -86,7 +86,8 @@ public class KenyaIdVerifiedForOnboardingHandler : INotificationHandler<KenyaIdV
                 var account = Account.CreateVirtualAccount(
                     customerId: customer.CustomerId,
                     accountNumber: AccountNumber.Create(virtualAccount.AccountNumber),
-                    providerReference: virtualAccount.ProviderReference);
+                    providerReference: virtualAccount.ProviderReference,
+                    currency: "KES");
 
                 await _unitOfWork.Accounts.AddAsync(account, cancellationToken);
 

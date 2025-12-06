@@ -56,14 +56,14 @@ namespace AfriPay.APP.EventHandlers
                     "Creating customer for Ghana: {FirstName} {LastName}",
                     request.FirstName, request.LastName);
 
-                var defaultPassword = _passwordHasher.HashPassword("Password123"); // Will be forced to change on first login
+                //var defaultPassword = _passwordHasher.HashPassword("Password123"); // Will be forced to change on first login
 
                 var customer = Customer.Create(
                     firstName: request.FirstName,
                     lastName: request.LastName,
                     email: request.ContactInfo.Email,
                     phoneNumber: request.ContactInfo.PhoneNumber,
-                    passwordHash: defaultPassword,
+                    //passwordHash: defaultPassword,
                     identity: notification.GhanaCard);
 
                 customer.MarkIdentityVerified(); // Marks identity as verified for Ghana
@@ -97,7 +97,8 @@ namespace AfriPay.APP.EventHandlers
                     var account = Account.CreateVirtualAccount(
                         customerId: customer.CustomerId,
                         accountNumber: AccountNumber.Create(virtualAccount.AccountNumber),
-                        providerReference: virtualAccount.ProviderReference);
+                        providerReference: virtualAccount.ProviderReference,
+                        currency: "GHS");
 
                     await _unitOfWork.Accounts.AddAsync(account, cancellationToken);
 
