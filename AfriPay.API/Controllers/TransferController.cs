@@ -4,6 +4,7 @@ using AfriPay.APP.Transfers.Queries.GetTransferHistory;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace AfriPay.API.Controllers
 {
@@ -36,16 +37,30 @@ namespace AfriPay.API.Controllers
         /// <remarks>
         /// This endpoint starts a transfer process from the source account to the destination account or user tag.
         ///
+        /// **FX Transfer Rates:**
+        /// The following foreign exchange (FX) rates apply for transfers between different countries/currencies. These rates are used for conversions when source and destination currencies differ.
+        /// - **Nigeria ↔ Ghana:**
+        ///   - **NGN to GHS: 0.0076** (1 NGN → 0.0076 GHS)
+        ///   - **GHS to NGN: 127.14** (1 GHS → 127.14 NGN)
+        /// - **Nigeria ↔ Kenya:**
+        ///   - **NGN to KES: 0.0896** (1 NGN → 0.0896 KES)
+        ///   - **KES to NGN: 11.19** (1 KES → 11.19 NGN)
+        /// - **Ghana ↔ Kenya:**
+        ///   - **GHS to KES: 10.72** (1 GHS → 10.72 KES)
+        ///   - **KES to GHS: 0.093** (1 KES → 0.093 GHS)
+        ///
         /// **Request Body (InitiateTransferRequest):**
         /// - SourceAccountId: The GUID of the source account (required).
         /// - DestinationAccountId: The GUID of the destination account (optional if DestinationUserTag is provided).
-        /// - DestinationUserTag: The user tag of the destination (optional if DestinationAccountId is provided, e.g., "@johndoe").
+        /// - DestinationUserTag: The user tag of the destination (optional if DestinationAccountId is provided, e.g., "Kwame").
         /// - Amount: The transfer amount (required, decimal, must be positive).
         /// - Currency: The currency code (optional, default: "NGN").
         /// - Description: A description or narration for the transfer (optional, string).
+        /// - Password: The customer's transaction password, required for additional security.
         /// - IdempotencyKey: A unique key to prevent duplicate transfers (optional, string).
         ///
         /// **Validation Notes:**
+        /// - Password must be valid for the source customer; otherwise the transfer is rejected.
         /// - Either DestinationAccountId or DestinationUserTag must be provided, but not both.
         /// - Amount must be greater than 0.
         /// - Source and destination must be valid and have sufficient balance.
@@ -55,12 +70,14 @@ namespace AfriPay.API.Controllers
         /// ```json
         /// POST /api/v1/transfer
         /// {
-        ///   "sourceAccountId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
-        ///   "destinationAccountId": "3fa85f64-5717-4562-b3fc-2c963f66afa7",
-        ///   "amount": 500.00,
+        ///   "sourceAccountId": "FA9C2912-F46F-457A-961E-B526FE7AFB72",
+        ///   "destinationAccountId": "B11EDBE9-8D80-4D46-A27B-05230D410E40",
+        ///   "destinationUserTag": "Kwame",
+        ///   "amount": 8000,
         ///   "currency": "NGN",
-        ///   "description": "Payment for services",
-        ///   "idempotencyKey": "unique-key-123"
+        ///   "description": "paid kwame fees",
+        ///   "password": "Password123",
+        ///   "idempotencyKey": "key-3"
         /// }
         /// ```
         ///
@@ -112,6 +129,7 @@ namespace AfriPay.API.Controllers
                 request.Amount,
                 request.Currency,
                 request.Description,
+                request.Password,
                 request.IdempotencyKey
             );
             var result = await _mediator.Send(command, cancellationToken);
@@ -358,13 +376,18 @@ namespace AfriPay.API.Controllers
         }
     }
 
-    public record InitiateTransferRequest(
-        Guid SourceAccountId,
-        Guid DestinationAccountId,
-        string? DestinationUserTag,
-        decimal Amount,
-        string? Currency,
-        string? Description,
-        string? IdempotencyKey
-    );
+    public class InitiateTransferRequest
+    {
+        public Guid SourceAccountId { get; set; }
+        public Guid DestinationAccountId { get; set; }
+        public string? DestinationUserTag { get; set; }
+        public decimal Amount { get; set; }
+        public string? Currency { get; set; }
+        public string? Description { get; set; }
+        [Required(ErrorMessage = "Password is required")]
+        [MinLength(8, ErrorMessage = "Password must be at least 8 characters")]
+        [SwaggerSchema(Description = "Customer transaction password used to authorize the transfer.", Format = "password")]
+        public string Password { get; set; } = string.Empty;
+        public string? IdempotencyKey { get; set; }
+    }
 }

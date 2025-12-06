@@ -45,7 +45,7 @@ namespace AfriPay.DAL.Repositories
         {
             // Use EF.Property to access the flattened column from IdentityNumber value object
             return await _context.OnboardingRequests
-                .FirstOrDefaultAsync(o => EF.Property<string>(o, "IdentityNumber") == identityNumber, cancellationToken);
+                .FirstOrDefaultAsync(o => o.IdentityNumber.Value == identityNumber, cancellationToken);
         }
 
         public async Task<IEnumerable<OnboardingRequest>> GetPendingRequestsAsync(CancellationToken cancellationToken = default)

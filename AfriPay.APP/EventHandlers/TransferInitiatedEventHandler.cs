@@ -1,4 +1,6 @@
-﻿using AfriPay.CORE.Events;
+﻿using AfriPay.CORE.Entities;
+using AfriPay.CORE.Enums;
+using AfriPay.CORE.Events;
 using AfriPay.CORE.Interfaces;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -8,13 +10,19 @@ namespace AfriPay.APP.EventHandlers;
 public class TransferInitiatedEventHandler : INotificationHandler<TransferInitiatedEvent>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPapssService _papssService;
+    private readonly IMediator _mediator;
     private readonly ILogger<TransferInitiatedEventHandler> _logger;
 
     public TransferInitiatedEventHandler(
         IUnitOfWork unitOfWork,
+        IPapssService papssService,
+        IMediator mediator,
         ILogger<TransferInitiatedEventHandler> logger)
     {
         _unitOfWork = unitOfWork;
+        _papssService = papssService;
+        _mediator = mediator;
         _logger = logger;
     }
 
@@ -29,6 +37,16 @@ public class TransferInitiatedEventHandler : INotificationHandler<TransferInitia
             if (transfer == null)
             {
                 _logger.LogError("Transfer not found: {TransferId}", notification.TransferId.Value);
+                return;
+            }
+
+            // If transfer is already in a terminal state, skip re-processing to keep idempotency
+            if (transfer.Status == TransferStatus.Completed || transfer.Status == TransferStatus.Failed)
+            {
+                _logger.LogInformation(
+                    "Skipping TransferInitiatedEvent for Transfer {TransferId} in terminal status {Status}",
+                    transfer.Id.Value,
+                    transfer.Status);
                 return;
             }
 
@@ -50,9 +68,88 @@ public class TransferInitiatedEventHandler : INotificationHandler<TransferInitia
                 return;
             }
 
+            // Determine whether PAPSS is required based on customers' identity documents
+            var sourceCustomer = await _unitOfWork.Customers.GetByIdAsync(sourceAccount.CustomerId, cancellationToken);
+            var destinationCustomer = await _unitOfWork.Customers.GetByIdAsync(destinationAccount.CustomerId, cancellationToken);
+
+            if (sourceCustomer == null || destinationCustomer == null)
+            {
+                _logger.LogError("Customer not found for transfer. Source: {SourceExists}, Destination: {DestExists}",
+                    sourceCustomer != null, destinationCustomer != null);
+                transfer.Fail("Customer not found");
+                _unitOfWork.Transfers.Update(transfer);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                return;
+            }
+
+            var (sourceCurrency, destinationCurrency) = ResolveCurrenciesForPapss(sourceCustomer, destinationCustomer, transfer.Amount.Currency);
+
+            PapssSettlementResult? papssResult = null;
+            // Default debit/credit amounts are as captured on the transfer
+            var debitAmount = transfer.TotalDebitAmount;
+            var creditAmount = transfer.Amount;
+
+            if (!string.Equals(sourceCurrency, destinationCurrency, StringComparison.OrdinalIgnoreCase))
+            {
+                // Cross-country / cross-currency transfer – go through PAPSS
+                var papssRequest = new PapssSettlementRequest
+                {
+                    TransferId = transfer.Id.Value,
+                    SourceCurrency = sourceCurrency,
+                    DestinationCurrency = destinationCurrency,
+                    Amount = transfer.Amount.Amount
+                };
+
+                var settlement = await _papssService.SettleAsync(papssRequest, cancellationToken);
+                if (!settlement.IsSuccess)
+                {
+                    var failureReason = settlement.Error ?? "PAPSS settlement failed";
+                    _logger.LogWarning("PAPSS settlement failed for Transfer {TransferId}: {Reason}", transfer.Id.Value, failureReason);
+
+                    transfer.Fail(failureReason);
+                    _unitOfWork.Transfers.Update(transfer);
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                    return;
+                }
+
+                papssResult = settlement.Value;
+
+                if (papssResult.RequiresPapss && !papssResult.IsSuccess)
+                {
+                    var reason = papssResult.FailureReason ?? "PAPSS settlement declined";
+                    transfer.Fail(reason);
+                    _unitOfWork.Transfers.Update(transfer);
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                    return;
+                }
+
+                // After successful PAPSS settlement, determine the effective
+                // source (debit) and destination (credit) amounts without
+                // reassigning the owned Money navigations. This avoids EF Core
+                // tracking issues with the owned Money value objects.
+                debitAmount = new AfriPay.CORE.ValueObjects.Money(
+                    papssResult.SourceAmount,
+                    papssResult.SourceCurrency);
+                creditAmount = new AfriPay.CORE.ValueObjects.Money(
+                    papssResult.DestinationAmount,
+                    papssResult.DestinationCurrency);
+
+                // Fire a PAPSS-specific notification for observability / downstream integration
+                await _mediator.Publish(new PapssSettlementCompletedNotification(
+                    transfer.Id.Value,
+                    papssResult.SourceCurrency,
+                    papssResult.DestinationCurrency,
+                    papssResult.SourceAmount,
+                    papssResult.DestinationAmount,
+                    papssResult.FxRate),
+                    cancellationToken);
+            }
+
+            // Decide the actual debit/credit amounts after any PAPSS adjustment.
+
             // Debit source account
             var debitResult = sourceAccount.Debit(
-                transfer.TotalDebitAmount,
+                debitAmount,
                 transfer.TransferReference,
                 $"Transfer to {transfer.DestinationUserTag ?? destinationAccount.AccountNumber.Value}"
             );
@@ -68,7 +165,7 @@ public class TransferInitiatedEventHandler : INotificationHandler<TransferInitia
 
             // Credit destination account
             var creditResult = destinationAccount.Credit(
-                transfer.Amount,
+                creditAmount,
                 transfer.TransferReference,
                 $"Transfer from {sourceAccount.AccountNumber.Value}"
             );
@@ -94,18 +191,18 @@ public class TransferInitiatedEventHandler : INotificationHandler<TransferInitia
             var debitTransaction = AfriPay.CORE.Entities.Transaction.CreateDebit(
                 transfer.SourceAccountId,
                 transfer.SourceCustomerId,
-                transfer.TotalDebitAmount,
+                debitAmount,
                 sourceBalanceBefore,
                 transfer.Narration ?? "Transfer",
                 transfer.Id
             );
 
             // Balance before = current balance - amount credited (to get balance before the credit)
-            var destBalanceBefore = destinationAccount.Balance.Amount - transfer.Amount.Amount;
+            var destBalanceBefore = destinationAccount.Balance.Amount - creditAmount.Amount;
             var creditTransaction = AfriPay.CORE.Entities.Transaction.CreateCredit(
                 transfer.DestinationAccountId,
                 transfer.DestinationCustomerId,
-                transfer.Amount,
+                creditAmount,
                 destBalanceBefore,
                 transfer.Narration ?? "Transfer",
                 transfer.Id
@@ -140,5 +237,30 @@ public class TransferInitiatedEventHandler : INotificationHandler<TransferInitia
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
         }
+    }
+
+    /// <summary>
+    /// Lightweight mapping from customer identity documents to their home currency.
+    /// This allows us to infer when a transfer is cross-country and should go through PAPSS.
+    /// </summary>
+    private static (string SourceCurrency, string DestinationCurrency) ResolveCurrenciesForPapss(
+        Customer sourceCustomer,
+        Customer destinationCustomer,
+        string fallbackCurrency)
+    {
+        // Today we infer country from the primary identity type.
+        // This can be refined later (e.g. explicit Country on Customer) without changing call sites.
+        static string MapIdentityToCurrency(IdentityType identityType, string defaultCurrency) => identityType switch
+        {
+            IdentityType.BVN => "NGN",            // Nigeria
+            IdentityType.GhanaCard => "GHS",      // Ghana
+            IdentityType.KenyaNationalID => "KES",// Kenya
+            _ => defaultCurrency                   // NIN/Passport -> treat as current ledger currency
+        };
+
+        var sourceCurrency = MapIdentityToCurrency(sourceCustomer.IdentityType, fallbackCurrency);
+        var destinationCurrency = MapIdentityToCurrency(destinationCustomer.IdentityType, fallbackCurrency);
+
+        return (sourceCurrency, destinationCurrency);
     }
 }

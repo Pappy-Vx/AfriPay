@@ -40,7 +40,7 @@ public class Transfer : AggregateRoot<TransferId>
         // EF Core requires parameterless constructor
     }
 
-    public static Transfer Create(
+        public static Transfer Create(
         AccountId sourceAccountId,
         CustomerId sourceCustomerId,
         AccountId destinationAccountId,
@@ -58,9 +58,11 @@ public class Transfer : AggregateRoot<TransferId>
         if (amount.Amount <= 0)
             throw new InvalidOperationException("Transfer amount must be greater than zero");
 
+        // Always use distinct Money instances for Amount and TotalDebitAmount
+        // so EF Core does not try to track the same owned entity instance twice.
         var totalDebit = fee != null
-            ? new Money(amount.Amount + fee.Amount)
-            : amount;
+            ? new Money(amount.Amount + fee.Amount, amount.Currency)
+            : new Money(amount.Amount, amount.Currency);
 
         var transfer = new Transfer
         {
@@ -72,8 +74,8 @@ public class Transfer : AggregateRoot<TransferId>
             DestinationAccountId = destinationAccountId,
             DestinationCustomerId = destinationCustomerId,
             DestinationUserTag = destinationUserTag,
-            Amount = amount,
-            Fee = fee,
+            Amount = new Money(amount.Amount, amount.Currency),
+            Fee = fee != null ? new Money(fee.Amount, fee.Currency) : null,
             TotalDebitAmount = totalDebit,
             Type = type,
             Status = TransferStatus.Pending,
@@ -117,6 +119,23 @@ public class Transfer : AggregateRoot<TransferId>
             Amount.Amount,
             TotalDebitAmount.Amount,
             Amount.Currency));
+    }
+
+    /// <summary>
+    /// Update transfer monetary values after cross-currency settlement.
+    /// Destination amount represents the value to credit in the destination account currency.
+    /// Total debit amount represents the full amount to debit from the source account in its currency.
+    /// </summary>
+    public void UpdateAmounts(Money destinationAmount, Money totalDebitAmount)
+    {
+        if (destinationAmount is null) throw new ArgumentNullException(nameof(destinationAmount));
+        if (totalDebitAmount is null) throw new ArgumentNullException(nameof(totalDebitAmount));
+
+        if (Status != TransferStatus.Pending && Status != TransferStatus.Processing)
+            throw new InvalidOperationException($"Cannot update amounts for transfer in status {Status}");
+
+        Amount = destinationAmount;
+        TotalDebitAmount = totalDebitAmount;
     }
 
     public void Fail(string reason)

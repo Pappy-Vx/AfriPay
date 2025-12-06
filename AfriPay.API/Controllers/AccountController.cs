@@ -1,4 +1,5 @@
-﻿using AfriPay.CORE.Interfaces;
+﻿using AfriPay.CORE.Entities;
+using AfriPay.CORE.Interfaces;
 using AfriPay.CORE.ValueObjects;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -470,5 +471,104 @@ namespace AfriPay.API.Controllers
                 transactions = transactionDtos
             });
         }
+
+        /// <summary>
+        /// Manually credits an account by account number. Intended for testing only.
+        /// </summary>
+        /// <remarks>
+        /// This endpoint looks up an account by its account number and applies a credit of the specified amount.
+        /// A transaction record is also created for traceability.
+        ///
+        /// **Sample Request:**
+        /// ```json
+        /// POST /api/v1/account/manual-credit
+        /// {
+        ///   "accountNumber": "1234567890",
+        ///   "amount": 500.00,
+        ///   "currency": "NGN"
+        /// }
+        /// ```
+        ///
+        /// **Response:**
+        /// - 200 OK: Account credited successfully.
+        /// - 400 Bad Request: Validation error or business rule failure.
+        /// - 404 Not Found: Account not found.
+        /// </remarks>
+        /// <param name="request">Manual credit request payload.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        [HttpPost("manual-credit")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [SwaggerOperation(
+            Summary = "Manually credit an account by account number (testing only)",
+            OperationId = "ManualCreditAccount",
+            Tags = new[] { "Account" }
+        )]
+        public async Task<IActionResult> ManualCredit(
+            [FromBody] ManualCreditRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (request == null)
+                return BadRequest(new { error = "Request body is required" });
+
+            if (string.IsNullOrWhiteSpace(request.AccountNumber))
+                return BadRequest(new { error = "AccountNumber is required" });
+
+            if (request.Amount <= 0)
+                return BadRequest(new { error = "Amount must be greater than zero" });
+
+            var account = await _unitOfWork.Accounts.GetByAccountNumberAsync(
+                request.AccountNumber.Trim(), cancellationToken);
+
+            if (account == null)
+                return NotFound(new { error = "Account not found" });
+
+            var accountCurrency = account.Balance.Currency;
+            var requestedCurrency = string.IsNullOrWhiteSpace(request.Currency)
+                ? accountCurrency
+                : request.Currency.Trim().ToUpperInvariant();
+
+            if (!string.Equals(accountCurrency, requestedCurrency, StringComparison.OrdinalIgnoreCase))
+            {
+                return BadRequest(new
+                {
+                    error = $"Currency mismatch. Account currency is '{accountCurrency}', but '{requestedCurrency}' was provided."
+                });
+            }
+
+            var amount = new Money(request.Amount, accountCurrency);
+            var balanceBefore = account.Balance.Amount;
+            var transactionReference = $"MANUAL-{DateTime.UtcNow:yyyyMMddHHmmssfff}-{Guid.NewGuid().ToString()[..6].ToUpper()}";
+
+            var creditResult = account.Credit(amount, transactionReference, "Manual test credit");
+            if (!creditResult.IsSuccess)
+                return BadRequest(new { error = creditResult.Error });
+
+            var transaction = Transaction.CreateCredit(
+                account.AccountId,
+                account.CustomerId,
+                amount,
+                balanceBefore,
+                "Manual test credit");
+
+            await _unitOfWork.Transactions.AddAsync(transaction, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return Ok(new
+            {
+                accountId = account.AccountId.Value,
+                accountNumber = account.AccountNumber.Value,
+                transactionId = transaction.Id,
+                transactionReference = transaction.TransactionReference,
+                creditedAmount = amount.Amount,
+                currency = amount.Currency,
+                balanceBefore,
+                balanceAfter = account.Balance.Amount,
+                message = "Account credited successfully (manual test operation)"
+            });
+        }
     }
+
+    public record ManualCreditRequest(string AccountNumber, decimal Amount, string Currency);
 }

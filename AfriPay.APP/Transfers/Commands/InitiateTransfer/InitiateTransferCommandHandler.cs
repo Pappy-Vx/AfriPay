@@ -11,13 +11,16 @@ namespace AfriPay.APP.Transfers.Commands.InitiateTransfer;
 public class InitiateTransferCommandHandler : IRequestHandler<InitiateTransferCommand, Result<Guid>>
 {
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IPasswordHasher _passwordHasher;
     private readonly ILogger<InitiateTransferCommandHandler> _logger;
 
     public InitiateTransferCommandHandler(
         IUnitOfWork unitOfWork,
+        IPasswordHasher passwordHasher,
         ILogger<InitiateTransferCommandHandler> logger)
     {
         _unitOfWork = unitOfWork;
+        _passwordHasher = passwordHasher;
         _logger = logger;
     }
 
@@ -50,10 +53,34 @@ public class InitiateTransferCommandHandler : IRequestHandler<InitiateTransferCo
             return Result<Guid>.Failure("Source account not found");
         }
 
-        // 3. Resolve destination account (by AccountId or UserTag)
+        // 2b. Verify transfer password against the source customer
+        var sourceCustomer = await _unitOfWork.Customers.GetByIdAsync(sourceAccount.CustomerId, cancellationToken);
+        if (sourceCustomer == null)
+        {
+            _logger.LogWarning("Source customer not found for account {SourceAccountId}", request.SourceAccountId);
+            return Result<Guid>.Failure("Source customer not found");
+        }
+
+        var isPasswordValid = _passwordHasher.VerifyPassword(request.Password, sourceCustomer.PasswordHash);
+        if (!isPasswordValid)
+        {
+            _logger.LogWarning("Invalid transfer password for customer {CustomerId}", sourceCustomer.CustomerId);
+            return Result<Guid>.Failure("Invalid transfer password");
+        }
+
+        // 3. Resolve destination account (by AccountId and/or UserTag)
         Account? destinationAccount = null;
 
-        if (!string.IsNullOrWhiteSpace(request.DestinationUserTag))
+        var hasTag = !string.IsNullOrWhiteSpace(request.DestinationUserTag);
+        var hasAccountId = request.DestinationAccountId != Guid.Empty;
+
+        if (!hasTag && !hasAccountId)
+        {
+            _logger.LogWarning("No destination provided. Either DestinationAccountId or DestinationUserTag is required.");
+            return Result<Guid>.Failure("Either destinationAccountId or destinationUserTag is required");
+        }
+
+        if (hasTag)
         {
             // Resolve by UserTag
             var normalizedTag = request.DestinationUserTag.TrimStart('@').ToUpperInvariant();
@@ -65,20 +92,39 @@ public class InitiateTransferCommandHandler : IRequestHandler<InitiateTransferCo
                 return Result<Guid>.Failure($"User with tag '{request.DestinationUserTag}' not found");
             }
 
-            // Get the customer's first account (in a real app, this would be the primary account)
+            // Get all accounts for that customer
             var accounts = await _unitOfWork.Accounts.GetByCustomerIdAsync(
                 destinationCustomer.CustomerId, cancellationToken);
-            destinationAccount = accounts.FirstOrDefault();
 
-            if (destinationAccount == null)
+            if (!accounts.Any())
             {
                 _logger.LogWarning("Destination customer has no accounts: {CustomerId}", destinationCustomer.CustomerId);
                 return Result<Guid>.Failure($"User '{request.DestinationUserTag}' has no active account");
             }
+
+            if (hasAccountId)
+            {
+                // Both tag and accountId were supplied – ensure they are consistent
+                destinationAccount = accounts.FirstOrDefault(a => a.AccountId.Value == request.DestinationAccountId);
+                if (destinationAccount == null)
+                {
+                    _logger.LogWarning(
+                        "Destination account {DestinationAccountId} does not belong to user tag {UserTag}",
+                        request.DestinationAccountId,
+                        request.DestinationUserTag);
+                    return Result<Guid>.Failure(
+                        "Destination account does not belong to the specified user tag");
+                }
+            }
+            else
+            {
+                // Only tag provided – default to the first (e.g. primary) account
+                destinationAccount = accounts.First();
+            }
         }
         else
         {
-            // Resolve by AccountId
+            // Only AccountId provided – resolve by AccountId and ensure its customer has a UserTag
             var destinationAccountId = AccountId.Create(request.DestinationAccountId);
             destinationAccount = await _unitOfWork.Accounts.GetByIdAsync(destinationAccountId, cancellationToken);
 
@@ -87,6 +133,26 @@ public class InitiateTransferCommandHandler : IRequestHandler<InitiateTransferCo
                 _logger.LogWarning("Destination account not found: {DestinationAccountId}", request.DestinationAccountId);
                 return Result<Guid>.Failure("Destination account not found");
             }
+
+            var destinationCustomer = await _unitOfWork.Customers.GetByIdAsync(destinationAccount.CustomerId, cancellationToken);
+            if (destinationCustomer == null)
+            {
+                _logger.LogWarning("Destination customer not found for account {DestinationAccountId}", request.DestinationAccountId);
+                return Result<Guid>.Failure("Destination customer not found");
+            }
+
+            if (destinationCustomer.UserTag is null)
+            {
+                _logger.LogWarning("Destination account {DestinationAccountId} has no associated UserTag", request.DestinationAccountId);
+                return Result<Guid>.Failure("Destination account has no associated user tag");
+            }
+        }
+
+        // Prevent transfers to the same account
+        if (destinationAccount.AccountId == sourceAccount.AccountId)
+        {
+            _logger.LogWarning("Attempted transfer to the same account: {AccountId}", sourceAccount.AccountId.Value);
+            return Result<Guid>.Failure("Cannot transfer to the same account");
         }
 
         // 4. Validate sufficient balance

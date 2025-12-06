@@ -10,5 +10,6 @@ public record InitiateTransferCommand(
     decimal Amount,
     string? Currency,
     string? Description,
+    string Password,
     string? IdempotencyKey
 ) : IRequest<Result<Guid>>;

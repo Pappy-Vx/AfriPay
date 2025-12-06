@@ -39,12 +39,16 @@ namespace AfriPay.APP.Onboarding.Commands.StartOnboarding
                 request.PhoneNumber);
 
             // Check for duplicate
-            var exists = await _repository.ExistsByEmailOrPhoneAsync(
+            var exists1 = await _repository.ExistsByEmailOrPhoneAsync(
                 request.Email,
                 request.PhoneNumber,
                 cancellationToken);
+            
+            var exists2 = await _repository.GetByIdentityNumberAsync(
+                request.IdentityNumber,
+                cancellationToken);
 
-            if (exists)
+            if (exists1)
             {
                 _logger.LogWarning(
                     "Duplicate onboarding attempt for {Email}",
@@ -53,6 +57,16 @@ namespace AfriPay.APP.Onboarding.Commands.StartOnboarding
                 return Result<StartOnboardingResponse>.Failure(
                     "An onboarding request already exists for this email or phone number");
             }
+            
+            if (exists2 is not null)
+            {
+                _logger.LogWarning(
+                    "Duplicate onboarding attempt for identity number {IdentityNumber}",
+                    request.IdentityNumber);
+                return Result<StartOnboardingResponse>.Failure(
+                    "An onboarding request already exists for this identity number");
+            }
+
 
             // Create PersonalInfo value object
             var personalInfo = new PersonalInfo(
