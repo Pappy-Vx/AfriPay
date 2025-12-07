@@ -23,15 +23,13 @@ public class TransferFailedSignalRHandler : INotificationHandler<TransferFailedE
     _logger.LogInformation("Sending SignalR notification for failed transfer: {TransferId}",
         notification.TransferId.Value);
 
-    // Notify sender about failure
+    // Notify sender about failure using TransferFailed method
     await _hubContext.Clients
         .Group($"customer_{notification.SourceCustomerId.Value}")
-        .BalanceUpdated(new BalanceUpdateNotification
+        .TransferFailed(new TransferFailedNotification
         {
-          AccountId = Guid.Empty, // No specific account
-          Amount = 0,
-          Currency = string.Empty,
-          Type = "TRANSFER_FAILED",
+          TransferReference = notification.TransferReference,
+          Reason = notification.Reason,
           Timestamp = DateTime.UtcNow
         });
 
