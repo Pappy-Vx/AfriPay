@@ -84,41 +84,41 @@ namespace AfriPay.API.Controllers
         }
 
         /// <summary>
-        /// Sets a user tag for a customer (one-time operation after onboarding).
+        /// Sets a user tag and password for a customer (account activation after onboarding).
         /// </summary>
         /// <remarks>
-        /// This endpoint allows setting a unique user tag for a customer. This can only be done once per customer.
+        /// This endpoint allows setting a unique user tag and password for a customer after onboarding.
+        /// This activates the customer's account and allows them to login.
         ///
         /// **Path Parameter:**
         /// - customerId: The unique GUID identifier for the customer (required).
         ///
         /// **Request Body (SetUserTagRequest):**
         /// - UserTag: The desired user tag (required, string). Should include '@' prefix (e.g., "@johndoe").
+        /// - Password: The customer's password (required, min 8 chars, must contain uppercase, lowercase, number, special char).
+        /// - ConfirmPassword: Must match Password.
         ///
         /// **Validation Notes:**
         /// - User tag must be unique and available.
-        /// - Can only be set once; subsequent attempts will fail.
-        /// - Invalid formats or unavailable tags will result in 400 Bad Request.
+        /// - Can only be done once per customer (account activation).
+        /// - Password must meet security requirements.
         ///
         /// **Sample Request:**
         /// ```json
         /// POST /api/v1/customer/{customerId}/usertag
         /// {
-        ///   "userTag": "@johndoe"
+        ///   "userTag": "@johndoe",
+        ///   "password": "SecurePassword123!",
+        ///   "confirmPassword": "SecurePassword123!"
         /// }
         /// ```
         ///
         /// **Sample Success Response (200 OK):**
         /// ```json
         /// {
-        ///   "message": "UserTag '@johndoe' set successfully"
+        ///   "message": "Account activated successfully. UserTag '@johndoe' set."
         /// }
         /// ```
-        ///
-        /// **Response:**
-        /// - 200 OK: User tag set successfully.
-        /// - 400 Bad Request: Invalid request, tag unavailable, or already set.
-        /// - 500 Internal Server Error: Unexpected server issue.
         /// </remarks>
         /// <param name="customerId">The GUID of the customer to set the user tag for.</param>
         /// <param name="request">The user tag request details.</param>
@@ -132,7 +132,7 @@ namespace AfriPay.API.Controllers
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
         [SwaggerOperation(
-            Summary = "Set UserTag for a customer (one-time, after onboarding)",
+            Summary = "Set UserTag and Password for a customer (account activation after onboarding)",
             OperationId = "SetUserTag",
             Tags = new[] { "Customer" }
         )]
@@ -141,14 +141,38 @@ namespace AfriPay.API.Controllers
             [FromBody] SetUserTagRequest request,
             CancellationToken cancellationToken)
         {
-            //commmand to
-            var command = new SetUserTagCommand(customerId, request.UserTag);
+            var command = new SetUserTagCommand(
+                customerId,
+                request.UserTag,
+                request.Password,
+                request.ConfirmPassword);
+
             var result = await _mediator.Send(command, cancellationToken);
+
             if (!result.IsSuccess)
                 return BadRequest(new { error = result.Error });
-            return Ok(new { message = $"UserTag '@{request.UserTag.TrimStart('@')}' set successfully" });
+
+            return Ok(new { message = $"Account activated successfully. UserTag '@{request.UserTag.TrimStart('@')}' set." });
         }
     }
 
-    public record SetUserTagRequest(string UserTag);
+    /// <summary>
+    /// Request to set UserTag and Password (account activation)
+    /// </summary>
+    public record SetUserTagRequest(
+        /// <summary>
+        /// The desired user tag (e.g., "@johndoe")
+        /// </summary>
+        string UserTag,
+
+        /// <summary>
+        /// Password (min 8 chars, uppercase, lowercase, number, special char required)
+        /// </summary>
+        string Password,
+
+        /// <summary>
+        /// Must match Password
+        /// </summary>
+        string ConfirmPassword
+    );
 }

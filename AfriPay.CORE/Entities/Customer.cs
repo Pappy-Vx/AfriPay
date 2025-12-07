@@ -125,13 +125,13 @@ namespace AfriPay.CORE.Entities
                 identity.Value,
                 identityType);
 
-//            // Backward compatibility: Set BVN if identity is BVN
-//            if (identity is BVN bvn)
-//            {
-//#pragma warning disable CS0618 // Type or member is obsolete
-//                customer.BVN = bvn;
-//#pragma warning restore CS0618
-//            }
+            //            // Backward compatibility: Set BVN if identity is BVN
+            //            if (identity is BVN bvn)
+            //            {
+            //#pragma warning disable CS0618 // Type or member is obsolete
+            //                customer.BVN = bvn;
+            //#pragma warning restore CS0618
+            //            }
 
             // Initialize ContactInfo to sync with flat properties
             customer.UpdateContactInfo(new ContactInfo(email, phoneNumber));
@@ -141,22 +141,22 @@ namespace AfriPay.CORE.Entities
                 customer.CustomerReference,
                 customer.FirstName,
                 customer.LastName,
-                customer.ContactInfo.Email
+                customer.ContactInfo!.Email
             ));
 
             return customer;
         }
 
-    //    public static Customer Create(
-    //string firstName,
-    //string lastName,
-    //string email,
-    //string phoneNumber,
-    //string passwordHash,
-    //GhanaCard ghanaCard)
-    //    {
-    //        // implementation...
-    //    }
+        //    public static Customer Create(
+        //string firstName,
+        //string lastName,
+        //string email,
+        //string phoneNumber,
+        //string passwordHash,
+        //GhanaCard ghanaCard)
+        //    {
+        //        // implementation...
+        //    }
 
         //public static Customer Create(
         //    string firstName,
@@ -309,7 +309,7 @@ namespace AfriPay.CORE.Entities
 
             PasswordHash = passwordHash;
         }
-        
+
 
         /// <summary>
         /// Deactivate the customer account

@@ -44,19 +44,28 @@ namespace AfriPay.APP.Authentication.Commands.Login
                 "Login attempt for UserTag: {UserTag}",
                 request.UserTag);
 
-            
-
-            //Find customer by UserTag
+            // Find customer by UserTag
             var customer = await _customerRepository.GetByUserTagAsync(request.UserTag, cancellationToken);
 
             if (customer == null)
             {
                 _logger.LogWarning(
-                    "Login failed - customer not found: {Email}",
+                    "Login failed - customer not found: {UserTag}",
                     request.UserTag);
 
                 return Result<LoginResponse>.Failure(
                     "Invalid usertag or password");
+            }
+
+            // Check if customer has activated their account (has password set)
+            if (string.IsNullOrEmpty(customer.PasswordHash))
+            {
+                _logger.LogWarning(
+                    "Login failed - account not activated: {CustomerId}",
+                    customer.CustomerId);
+
+                return Result<LoginResponse>.Failure(
+                    "Account not activated. Please set your UserTag and password first.");
             }
 
             // Check if customer is active
@@ -70,7 +79,7 @@ namespace AfriPay.APP.Authentication.Commands.Login
                     "Account is inactive. Please contact support.");
             }
 
-            // Verify password
+            // Verify password (compares against hash set during UserTag creation)
             var isPasswordValid = _passwordHasher.VerifyPassword(
                 request.Password,
                 customer.PasswordHash);
@@ -82,7 +91,7 @@ namespace AfriPay.APP.Authentication.Commands.Login
                     customer.CustomerId);
 
                 return Result<LoginResponse>.Failure(
-                    "Invalid email or password");
+                    "Invalid usertag or password");
             }
 
             // Get customer's account (if exists)
@@ -97,7 +106,7 @@ namespace AfriPay.APP.Authentication.Commands.Login
 
             var token = _jwtTokenGenerator.GenerateToken(
                 customer.CustomerId, // Use .Value to get the Guid
-                customer.ContactInfo.Email,
+                customer.ContactInfo!.Email,
                 customer.FirstName,
                 tokenExpirationMinutes);
 
