@@ -90,6 +90,11 @@ try
     builder.Services.AddTransient<INotificationHandler<TransferFailedEvent>, TransferFailedEventHandler>();
     builder.Services.AddTransient<INotificationHandler<PapssSettlementCompletedNotification>, PapssSettlementCompletedEventHandler>();
     // =====================================================================
+    // SIGNALR EVENT HANDLERS (Real-time notifications)
+    // =====================================================================
+    builder.Services.AddTransient<INotificationHandler<TransferCompletedEvent>, AfriPay.API.EventHandlers.TransferCompletedSignalRHandler>();
+    builder.Services.AddTransient<INotificationHandler<TransferFailedEvent>, AfriPay.API.EventHandlers.TransferFailedSignalRHandler>();
+    // =====================================================================
     // APPLICATION SERVICES
     // =====================================================================
     builder.Services.AddApplicationServices(); // MediatR, FluentValidation, Behaviors
@@ -141,6 +146,7 @@ try
     // CONTROLLERS + SWAGGER
     // =====================================================================
     builder.Services.AddControllers();
+    builder.Services.AddSignalR();
     builder.Services.AddApiVersioningConfiguration();
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen(c =>
@@ -267,9 +273,9 @@ try
     // ROUTING
     // =====================================================================
     app.MapControllers();
-    app.MapGet("/", () => "AfriPay API is running. Visit /swagger for documentation.");
+    app.MapGet("/", () => Results.Redirect("/swagger"));
     // Map SignalR hub
-    //app.MapHub<AccountBalanceHub>("/hubs/account");
+    app.MapHub<AccountBalanceHub>("/hubs/account");
     if (app.Environment.IsDevelopment())
     {
         using var scope = app.Services.CreateScope();
