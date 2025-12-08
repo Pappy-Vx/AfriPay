@@ -50,12 +50,19 @@ x64/
 *.tlh
 *.tmp
 *.tmp_proj
-*.log
+*.logs/
 *.vspscc
 *.vssscc
 .builds
 *.pidb
 *.scc
+*.logs/
+
+# AfriPay logs folder
+logs/
+**/logs/
+*.txt
+AfriPay.API/logs/
 
 # Visual C++ cache files
 ipch/
