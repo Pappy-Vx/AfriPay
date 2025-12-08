@@ -252,19 +252,19 @@ try
     // =====================================================================
     app.UseMiddleware<ExceptionHandlingMiddleware>();
     app.UseMiddleware<RequestLoggingMiddleware>();
-    if (app.Environment.IsDevelopment())
+
+    // Enable Swagger for ALL environments (remove the IsDevelopment check)
+    app.UseSwagger();
+    app.UseSwaggerUI(c =>
     {
-        app.UseSwagger();
-        app.UseSwaggerUI(c =>
-        {
-            c.SwaggerEndpoint("/swagger/v1/swagger.json", "AfriPay API v1");
-            c.RoutePrefix = "swagger";
-            c.DisplayRequestDuration();
-            c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.List);
-            c.EnableDeepLinking();
-            c.EnableFilter();
-        });
-    }
+        c.SwaggerEndpoint("/swagger/v1/swagger.json", "AfriPay API v1");
+        c.RoutePrefix = "swagger";
+        c.DisplayRequestDuration();
+        c.DocExpansion(Swashbuckle.AspNetCore.SwaggerUI.DocExpansion.List);
+        c.EnableDeepLinking();
+        c.EnableFilter();
+    });
+
     app.UseHttpsRedirection();
     // Authentication must come before Authorization
     app.UseAuthentication();
@@ -276,6 +276,7 @@ try
     app.MapGet("/", () => Results.Redirect("/swagger"));
     // Map SignalR hub
     app.MapHub<AccountBalanceHub>("/hubs/account");
+
     if (app.Environment.IsDevelopment())
     {
         using var scope = app.Services.CreateScope();
@@ -290,6 +291,8 @@ try
             Log.Warning(ex, "Database migration failed - ensure SQL Server is running");
         }
     }
+
+    //
     app.Run();
 }
 catch (Exception ex) when (ex is not HostAbortedException)
