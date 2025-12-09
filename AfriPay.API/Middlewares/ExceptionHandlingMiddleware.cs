@@ -1,7 +1,10 @@
 using AfriPay.APP.Common.Exceptions;
+using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
+using System.ComponentModel.DataAnnotations;
 using System.Net;
 using System.Text.Json;
+using AppValidationException = AfriPay.APP.Common.Exceptions.ValidationException;
 
 namespace AfriPay.API.Middlewares
 {
@@ -43,11 +46,39 @@ namespace AfriPay.API.Middlewares
 
             var problemDetails = exception switch
             {
-                ValidationException validationEx => new ValidationProblemDetails(validationEx.Errors)
+                // Application-level validation exceptions (FluentValidation pipeline)
+                AppValidationException validationEx => new ValidationProblemDetails(validationEx.Errors)
                 {
                     Status = StatusCodes.Status400BadRequest,
                     Title = "Validation Error",
                     Detail = "One or more validation errors occurred.",
+                    Instance = context.Request.Path
+                },
+                // FluentValidation exceptions that may be thrown directly
+                FluentValidation.ValidationException fluentValidationEx => new ValidationProblemDetails(
+                    fluentValidationEx.Errors
+                        .GroupBy(e => e.PropertyName, e => e.ErrorMessage)
+                        .ToDictionary(g => g.Key, g => g.ToArray()))
+                {
+                    Status = StatusCodes.Status400BadRequest,
+                    Title = "Validation Error",
+                    Detail = "One or more validation errors occurred.",
+                    Instance = context.Request.Path
+                },
+                // DataAnnotations-based validation errors (e.g., model binding)
+                System.ComponentModel.DataAnnotations.ValidationException dataAnnotationsEx => new ProblemDetails
+                {
+                    Status = StatusCodes.Status400BadRequest,
+                    Title = "Validation Error",
+                    Detail = dataAnnotationsEx.Message,
+                    Instance = context.Request.Path
+                },
+                // Argument-related validation errors (typically indicate bad client input)
+                ArgumentException argumentEx => new ProblemDetails
+                {
+                    Status = StatusCodes.Status400BadRequest,
+                    Title = "Invalid Argument",
+                    Detail = argumentEx.Message,
                     Instance = context.Request.Path
                 },
                 _ => new ProblemDetails

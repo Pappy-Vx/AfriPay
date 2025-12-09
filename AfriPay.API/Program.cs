@@ -13,6 +13,9 @@ using AfriPay.DAL.Repositories;
 using AfriPay.DAL.Services;
 using MediatR;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
@@ -20,6 +23,7 @@ using Serilog;
 using Serilog.Events;
 using System.Reflection;
 using System.Text;
+using System.Threading.RateLimiting;
 // =====================================================================
 // SERILOG CONFIGURATION
 // =====================================================================
@@ -49,8 +53,13 @@ try
     // DATABASE
     // =====================================================================
     builder.Services.AddDbContext<AfriPayDbContext>(options =>
+    {
         options.UseSqlServer(
-            builder.Configuration.GetConnectionString("DefaultConnection")));
+                builder.Configuration.GetConnectionString("DefaultConnection"));
+
+        // Disable tracking for read-only scenarios to improve performance
+        options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+    });
     // =====================================================================
     // CORE & INFRASTRUCTURE
     // =====================================================================
@@ -142,12 +151,101 @@ try
         };
     });
     builder.Services.AddAuthorization();
+
+    // =====================================================================
+    // RATE LIMITING
+    // =====================================================================
+    builder.Services.AddRateLimiter(options =>
+    {
+        options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
+
+        // Global per-IP rate limit (basic application-level protection)
+        options.GlobalLimiter = PartitionedRateLimiter.Create<HttpContext, string>(context =>
+        {
+            var remoteIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+            return RateLimitPartition.GetTokenBucketLimiter(
+                partitionKey: remoteIp,
+                factory: _ => new TokenBucketRateLimiterOptions
+                {
+                    TokenLimit = 300,                 // max 300 requests
+                    TokensPerPeriod = 300,            // refill 300 tokens
+                    ReplenishmentPeriod = TimeSpan.FromMinutes(1),
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = 0,
+                    AutoReplenishment = true
+                });
+        });
+
+        // Stricter limit for login endpoints to slow down brute-force attacks
+        options.AddPolicy("LoginPolicy", context =>
+        {
+            var remoteIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+            return RateLimitPartition.GetFixedWindowLimiter(
+                partitionKey: remoteIp,
+                factory: _ => new FixedWindowRateLimiterOptions
+                {
+                    PermitLimit = 10,                 // 10 login attempts
+                    Window = TimeSpan.FromMinutes(1), // per minute
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = 0
+                });
+        });
+
+        // Limit for money‑movement endpoints (transfers)
+        options.AddPolicy("TransfersPolicy", context =>
+        {
+            var remoteIp = context.Connection.RemoteIpAddress?.ToString() ?? "unknown";
+
+            return RateLimitPartition.GetSlidingWindowLimiter(
+                partitionKey: remoteIp,
+                factory: _ => new SlidingWindowRateLimiterOptions
+                {
+                    PermitLimit = 60,                 // up to 60 transfer operations
+                    Window = TimeSpan.FromMinutes(1), // per minute
+                    SegmentsPerWindow = 6,
+                    QueueProcessingOrder = QueueProcessingOrder.OldestFirst,
+                    QueueLimit = 0
+                });
+        });
+
+        options.OnRejected = async (context, token) =>
+        {
+            if (context.Lease.TryGetMetadata(MetadataName.RetryAfter, out var retryAfter))
+            {
+                context.HttpContext.Response.Headers.RetryAfter = ((int)retryAfter.TotalSeconds).ToString();
+            }
+
+            var problem = new ProblemDetails
+            {
+                Status = StatusCodes.Status429TooManyRequests,
+                Title = "Too Many Requests",
+                Detail = "Rate limit exceeded. Please try again later.",
+                Instance = context.HttpContext.Request.Path
+            };
+
+            context.HttpContext.Response.ContentType = "application/json";
+            await context.HttpContext.Response.WriteAsJsonAsync(problem, cancellationToken: token);
+        };
+    });
     // =====================================================================
     // CONTROLLERS + SWAGGER
     // =====================================================================
     builder.Services.AddControllers();
     builder.Services.AddSignalR();
     builder.Services.AddApiVersioningConfiguration();
+    builder.Services.AddResponseCompression(options =>
+    {
+        options.EnableForHttps = true;
+        options.Providers.Add<GzipCompressionProvider>();
+        options.Providers.Add<BrotliCompressionProvider>();
+
+        options.Providers.Add(new BrotliCompressionProvider(new BrotliCompressionProviderOptions
+        {
+            Level = System.IO.Compression.CompressionLevel.Fastest
+        }));
+    });
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen(c =>
     {
@@ -252,6 +350,7 @@ try
     // =====================================================================
     app.UseMiddleware<ExceptionHandlingMiddleware>();
     app.UseMiddleware<RequestLoggingMiddleware>();
+    app.UseRateLimiter();
 
     // Enable Swagger for ALL environments (remove the IsDevelopment check)
     app.UseSwagger();

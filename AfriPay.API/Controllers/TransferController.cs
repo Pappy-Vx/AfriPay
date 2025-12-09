@@ -3,6 +3,7 @@ using AfriPay.APP.Transfers.Queries.GetTransferById;
 using AfriPay.APP.Transfers.Queries.GetTransferHistory;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Swashbuckle.AspNetCore.Annotations;
 using System.ComponentModel.DataAnnotations;
 
@@ -108,6 +109,7 @@ namespace AfriPay.API.Controllers
         /// <response code="400">Bad request - validation errors or transfer failure</response>
         /// <response code="500">Internal server error - unexpected system error</response>
         [HttpPost]
+        [EnableRateLimiting("TransfersPolicy")]
         [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
