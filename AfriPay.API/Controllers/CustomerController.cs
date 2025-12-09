@@ -1,5 +1,6 @@
 ﻿using AfriPay.APP.Customers.Commands.SetUserTag;
 using AfriPay.APP.Customers.Queries.CheckUserTagAvailability;
+using AfriPay.APP.Customers.Queries.GetCustomerByUserTag;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
@@ -81,6 +82,88 @@ namespace AfriPay.API.Controllers
             var query = new CheckUserTagAvailabilityQuery(tag);
             var result = await _mediator.Send(query, cancellationToken);
             return Ok(result);
+        }
+
+        /// <summary>
+        /// Retrieves basic customer details by UserTag.
+        /// </summary>
+        /// <remarks>
+        /// This endpoint looks up a customer profile using their UserTag.
+        ///
+        /// **Path Parameter:**
+        /// - tag: The user tag to look up (required, string). Can be provided with or without the '@' prefix.
+        ///
+        /// **Sample Request:**
+        /// ```
+        /// GET /api/v1/customer/usertag/@johndoe
+        /// ```
+        ///
+        /// **Sample Success Response (200 OK):**
+        /// ```json
+        /// {
+        ///   "customerId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        ///   "userTag": "@johndoe",
+        ///   "firstName": "John",
+        ///   "lastName": "Doe",
+        ///   "email": "john.doe@example.com",
+        ///   "phoneNumber": "+2348012345678",
+        ///   "isActive": true
+        /// }
+        /// ```
+        ///
+        /// **Response:**
+        /// - 200 OK: Customer details returned.
+        /// - 400 Bad Request: Invalid UserTag format.
+        /// - 404 Not Found: No customer found for the given UserTag.
+        /// - 500 Internal Server Error: Unexpected server issue.
+        /// </remarks>
+        /// <param name="tag">The UserTag to retrieve customer details for.</param>
+        /// <param name="cancellationToken">Cancellation token for the async operation.</param>
+        /// <returns>Customer details when found, or error information.</returns>
+        /// <response code="200">Customer details retrieved successfully</response>
+        /// <response code="400">Bad request - invalid UserTag format</response>
+        /// <response code="404">Customer not found for the given UserTag</response>
+        /// <response code="500">Internal server error - unexpected system error</response>
+        [HttpGet("usertag/{tag}")]
+        [ProducesResponseType(typeof(CustomerDetailsResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        [SwaggerOperation(
+            Summary = "Get customer details by UserTag",
+            OperationId = "GetCustomerByUserTag",
+            Tags = new[] { "Customer" }
+        )]
+        public async Task<ActionResult<CustomerDetailsResponse>> GetCustomerByUserTag(
+            string tag,
+            CancellationToken cancellationToken)
+        {
+            var query = new GetCustomerByUserTagQuery(tag);
+            var result = await _mediator.Send(query, cancellationToken);
+
+            if (result.IsFailure)
+            {
+                if (string.Equals(result.Error, "Customer not found", StringComparison.OrdinalIgnoreCase))
+                {
+                    return NotFound(new ProblemDetails
+                    {
+                        Title = "Customer Not Found",
+                        Detail = result.Error,
+                        Status = StatusCodes.Status404NotFound,
+                        Instance = HttpContext.Request.Path
+                    });
+                }
+
+                return BadRequest(new ProblemDetails
+                {
+                    Title = "Invalid UserTag",
+                    Detail = result.Error,
+                    Status = StatusCodes.Status400BadRequest,
+                    Instance = HttpContext.Request.Path
+                });
+            }
+
+            return Ok(result.Value);
         }
 
         /// <summary>

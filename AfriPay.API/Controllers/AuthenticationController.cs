@@ -1,6 +1,7 @@
 ﻿using AfriPay.APP.Authentication.Commands.Login;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace AfriPay.API.Controllers
 {
@@ -119,6 +120,7 @@ namespace AfriPay.API.Controllers
         /// <response code="401">Unauthorized - invalid credentials or inactive account</response>
         /// <response code="500">Internal server error - unexpected system error</response>
         [HttpPost("login")]
+        [EnableRateLimiting("LoginPolicy")]
         [ProducesResponseType(typeof(LoginResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
         [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status401Unauthorized)]
