@@ -17,6 +17,7 @@ namespace AfriPay.DAL.Repositories
         public async Task<Customer?> GetByIdAsync(CustomerId customerId, CancellationToken cancellationToken = default)
         {
             return await _context.Customers
+                .AsTracking() // Explicitly enable tracking for write operations
                 .Include(c => c.Accounts)
                 .FirstOrDefaultAsync(c => c.CustomerId == customerId, cancellationToken);
         }

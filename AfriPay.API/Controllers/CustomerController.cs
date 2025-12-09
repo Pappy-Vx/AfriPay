@@ -1,4 +1,5 @@
 ﻿using AfriPay.APP.Customers.Commands.SetUserTag;
+using AfriPay.APP.Customers.Commands.SetTransferPin;
 using AfriPay.APP.Customers.Queries.CheckUserTagAvailability;
 using AfriPay.APP.Customers.Queries.GetCustomerByUserTag;
 using MediatR;
@@ -237,6 +238,67 @@ namespace AfriPay.API.Controllers
 
             return Ok(new { message = $"Account activated successfully. UserTag '@{request.UserTag.TrimStart('@')}' set." });
         }
+
+        /// <summary>
+        /// Sets or updates the transfer PIN for a customer.
+        /// </summary>
+        /// <remarks>
+        /// This endpoint allows setting or changing the transfer PIN used to authorize money transfers.
+        ///
+        /// **Path Parameter:**
+        /// - customerId: The unique GUID identifier for the customer (required).
+        ///
+        /// **Request Body (SetTransferPinRequest):**
+        /// - Pin: The desired transfer PIN (required, 4-12 characters).
+        /// - ConfirmPin: Must match Pin.
+        ///
+        /// **Sample Request:**
+        /// ```json
+        /// POST /api/v1/customer/{customerId}/pin
+        /// {
+        ///   "pin": "1234",
+        ///   "confirmPin": "1234"
+        /// }
+        /// ```
+        ///
+        /// **Response:**
+        /// - 200 OK: Transfer PIN set successfully.
+        /// - 400 Bad Request: Validation errors or customer not found.
+        /// - 500 Internal Server Error: Unexpected system error.
+        /// </remarks>
+        /// <param name="customerId">The GUID of the customer to set the transfer PIN for.</param>
+        /// <param name="request">The transfer PIN request details.</param>
+        /// <param name="cancellationToken">Cancellation token for the async operation.</param>
+        /// <returns>Success message on completion, or error details.</returns>
+        /// <response code="200">Transfer PIN set successfully</response>
+        /// <response code="400">Bad request - validation errors or customer not found</response>
+        /// <response code="500">Internal server error - unexpected system error</response>
+        [HttpPost("{customerId:guid}/pin")]
+        [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status500InternalServerError)]
+        [SwaggerOperation(
+            Summary = "Set or update transfer PIN for a customer",
+            OperationId = "SetTransferPin",
+            Tags = new[] { "Customer" }
+        )]
+        public async Task<IActionResult> SetTransferPin(
+            Guid customerId,
+            [FromBody] SetTransferPinRequest request,
+            CancellationToken cancellationToken)
+        {
+            var command = new SetTransferPinCommand(
+                customerId,
+                request.Pin,
+                request.ConfirmPin);
+
+            var result = await _mediator.Send(command, cancellationToken);
+
+            if (!result.IsSuccess)
+                return BadRequest(new { error = result.Error });
+
+            return Ok(new { message = "Transfer PIN set successfully." });
+        }
     }
 
     /// <summary>
@@ -257,5 +319,20 @@ namespace AfriPay.API.Controllers
         /// Must match Password
         /// </summary>
         string ConfirmPassword
+    );
+
+    /// <summary>
+    /// Request to set or update a customer's transfer PIN.
+    /// </summary>
+    public record SetTransferPinRequest(
+        /// <summary>
+        /// Desired transfer PIN (4-12 characters).
+        /// </summary>
+        string Pin,
+
+        /// <summary>
+        /// Must match Pin.
+        /// </summary>
+        string ConfirmPin
     );
 }

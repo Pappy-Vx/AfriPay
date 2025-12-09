@@ -57,8 +57,11 @@ namespace AfriPay.DAL.Data
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
-            // Dispatch domain events before saving
-            // Support both Guid and TransferId aggregate roots
+            // NOTE: Event dispatching is now handled by UnitOfWork to avoid double dispatch
+            // UnitOfWork.SaveChangesAsync collects and dispatches events, then calls this method
+            // If called directly (not through UnitOfWork), we still dispatch events here
+
+            // Collect domain events before saving
             var guidEntitiesWithEvents = ChangeTracker.Entries<AggregateRoot<Guid>>()
                 .Select(e => e.Entity)
                 .Where(e => e.DomainEvents.Any())
@@ -73,18 +76,23 @@ namespace AfriPay.DAL.Data
             events.AddRange(guidEntitiesWithEvents.SelectMany(e => e.DomainEvents));
             events.AddRange(transferIdEntitiesWithEvents.SelectMany(e => e.DomainEvents));
 
+            // Clear events before saving
             guidEntitiesWithEvents.ForEach(e => e.ClearDomainEvents());
             transferIdEntitiesWithEvents.ForEach(e => e.ClearDomainEvents());
 
+            // Save to database
             var result = await base.SaveChangesAsync(cancellationToken);
-            // Dispatch events after successful save
-            if (_eventDispatcher != null)
+
+            // Only dispatch if we have an event dispatcher AND we have events
+            // This is a fallback for direct DbContext usage (not through UnitOfWork)
+            if (_eventDispatcher != null && events.Any())
             {
                 foreach (var domainEvent in events)
                 {
                     await _eventDispatcher.DispatchAsync(domainEvent, cancellationToken);
                 }
             }
+
             return result;
         }
     }

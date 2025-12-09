@@ -53,7 +53,7 @@ public class InitiateTransferCommandHandler : IRequestHandler<InitiateTransferCo
             return Result<Guid>.Failure("Source account not found");
         }
 
-        // 2b. Verify transfer password against the source customer
+        // 2b. Verify transfer PIN against the source customer
         var sourceCustomer = await _unitOfWork.Customers.GetByIdAsync(sourceAccount.CustomerId, cancellationToken);
         if (sourceCustomer == null)
         {
@@ -61,11 +61,17 @@ public class InitiateTransferCommandHandler : IRequestHandler<InitiateTransferCo
             return Result<Guid>.Failure("Source customer not found");
         }
 
-        var isPasswordValid = _passwordHasher.VerifyPassword(request.Password, sourceCustomer.PasswordHash);
-        if (!isPasswordValid)
+        if (string.IsNullOrEmpty(sourceCustomer.TransferPinHash))
         {
-            _logger.LogWarning("Invalid transfer password for customer {CustomerId}", sourceCustomer.CustomerId);
-            return Result<Guid>.Failure("Invalid transfer password");
+            _logger.LogWarning("Transfer PIN not set for customer {CustomerId}", sourceCustomer.CustomerId);
+            return Result<Guid>.Failure("Transfer PIN is not set for this customer");
+        }
+
+        var isPinValid = _passwordHasher.VerifyPassword(request.Pin, sourceCustomer.TransferPinHash);
+        if (!isPinValid)
+        {
+            _logger.LogWarning("Invalid transfer PIN for customer {CustomerId}", sourceCustomer.CustomerId);
+            return Result<Guid>.Failure("Invalid transfer PIN");
         }
 
         // 3. Resolve destination account (by AccountId and/or UserTag)
@@ -155,9 +161,37 @@ public class InitiateTransferCommandHandler : IRequestHandler<InitiateTransferCo
             return Result<Guid>.Failure("Cannot transfer to the same account");
         }
 
-        // 4. Validate sufficient balance
+        // 4. Validate transfer limits and sufficient balance
         var currency = sourceAccount.Balance.Currency;
         var amount = new Money(request.Amount, currency);
+
+        // Enforce single transfer limit
+        if (request.Amount > sourceAccount.SingleTransferLimit)
+        {
+            _logger.LogWarning(
+                "Amount exceeds single transfer limit. Limit: {Limit}, Amount: {Amount}",
+                sourceAccount.SingleTransferLimit,
+                request.Amount);
+            return Result<Guid>.Failure($"Amount exceeds single transfer limit of {sourceAccount.SingleTransferLimit}");
+        }
+
+        // Enforce daily transfer limit (simulate ResetDailyLimitIfNeeded logic)
+        var today = DateTime.UtcNow.Date;
+        var dailyTotal = sourceAccount.DailyTransferTotal;
+        if (sourceAccount.LastDailyResetDate < today)
+        {
+            dailyTotal = 0;
+        }
+
+        if (dailyTotal + request.Amount > sourceAccount.DailyTransferLimit)
+        {
+            _logger.LogWarning(
+                "Amount exceeds daily transfer limit. Limit: {Limit}, CurrentTotal: {CurrentTotal}, Requested: {Requested}",
+                sourceAccount.DailyTransferLimit,
+                dailyTotal,
+                request.Amount);
+            return Result<Guid>.Failure($"Amount exceeds daily transfer limit of {sourceAccount.DailyTransferLimit}");
+        }
 
         // For internal transfers, no fee for now (can be added later)
         Money? fee = null;
