@@ -8,7 +8,6 @@ public record InitiateTransferCommand(
     Guid DestinationAccountId,
     string? DestinationUserTag,
     decimal Amount,
-    string? Currency,
     string? Description,
     string Password,
     string? IdempotencyKey

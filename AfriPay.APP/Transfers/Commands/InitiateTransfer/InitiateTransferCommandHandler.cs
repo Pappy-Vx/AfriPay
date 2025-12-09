@@ -156,7 +156,7 @@ public class InitiateTransferCommandHandler : IRequestHandler<InitiateTransferCo
         }
 
         // 4. Validate sufficient balance
-        var currency = request.Currency ?? "NGN";
+        var currency = sourceAccount.Balance.Currency;
         var amount = new Money(request.Amount, currency);
 
         // For internal transfers, no fee for now (can be added later)
