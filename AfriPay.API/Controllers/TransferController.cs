@@ -55,7 +55,6 @@ namespace AfriPay.API.Controllers
         /// - DestinationAccountId: The GUID of the destination account (optional if DestinationUserTag is provided).
         /// - DestinationUserTag: The user tag of the destination (optional if DestinationAccountId is provided, e.g., "Kwame").
         /// - Amount: The transfer amount (required, decimal, must be positive).
-        /// - Currency: The currency code (optional, default: "NGN").
         /// - Description: A description or narration for the transfer (optional, string).
         /// - Password: The customer's transaction password, required for additional security.
         /// - IdempotencyKey: A unique key to prevent duplicate transfers (optional, string).
@@ -75,7 +74,6 @@ namespace AfriPay.API.Controllers
         ///   "destinationAccountId": "B11EDBE9-8D80-4D46-A27B-05230D410E40",
         ///   "destinationUserTag": "Kwame",
         ///   "amount": 8000,
-        ///   "currency": "NGN",
         ///   "description": "paid kwame fees",
         ///   "password": "Password123",
         ///   "idempotencyKey": "key-3"
@@ -129,7 +127,6 @@ namespace AfriPay.API.Controllers
                 request.DestinationAccountId,
                 request.DestinationUserTag,
                 request.Amount,
-                request.Currency,
                 request.Description,
                 request.Password,
                 request.IdempotencyKey
@@ -384,7 +381,6 @@ namespace AfriPay.API.Controllers
         public Guid DestinationAccountId { get; set; }
         public string? DestinationUserTag { get; set; }
         public decimal Amount { get; set; }
-        public string? Currency { get; set; }
         public string? Description { get; set; }
         [Required(ErrorMessage = "Password is required")]
         [MinLength(8, ErrorMessage = "Password must be at least 8 characters")]

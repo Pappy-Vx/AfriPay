@@ -66,6 +66,7 @@ public class GetCustomerByUserTagQueryHandler
         {
             CustomerId = customer.CustomerId.Value,
             AccountId = primaryAccount?.AccountId.Value,
+            AccountCurrency = primaryAccount?.Balance.Currency,
             UserTag = customer.UserTag?.DisplayTag ?? string.Empty,
             FirstName = customer.FirstName,
             LastName = customer.LastName,

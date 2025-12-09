@@ -24,6 +24,11 @@ public record CustomerDetailsResponse
     public Guid? AccountId { get; init; }
 
     /// <summary>
+    /// Currency of the primary account, if an account exists.
+    /// </summary>
+    public string? AccountCurrency { get; init; }
+
+    /// <summary>
     /// The customer's UserTag (always prefixed with '@').
     /// </summary>
     public string UserTag { get; init; } = string.Empty;
