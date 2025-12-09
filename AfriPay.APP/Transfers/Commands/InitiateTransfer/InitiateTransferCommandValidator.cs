@@ -17,11 +17,11 @@ public class InitiateTransferCommandValidator : AbstractValidator<InitiateTransf
             .GreaterThan(0).WithMessage("Amount must be greater than zero")
             .LessThanOrEqualTo(10000000).WithMessage("Amount exceeds maximum transfer limit");
 
-        When(x => !string.IsNullOrWhiteSpace(x.Currency), () =>
-        {
-            RuleFor(x => x.Currency)
-                .Length(3).WithMessage("Currency must be 3 characters (e.g., NGN, USD)");
-        });
+        //When(x => !string.IsNullOrWhiteSpace(x.Currency), () =>
+        //{
+        //    RuleFor(x => x.Currency)
+        //        .Length(3).WithMessage("Currency must be 3 characters (e.g., NGN, USD)");
+        //});
 
         When(x => !string.IsNullOrWhiteSpace(x.Description), () =>
         {
