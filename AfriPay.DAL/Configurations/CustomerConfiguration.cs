@@ -89,6 +89,11 @@ namespace AfriPay.DAL.Configurations
                 .HasMaxLength(500)
                 .IsRequired();
 
+            builder.Property(c => c.TransferPinHash)
+                .HasColumnName("TransferPinHash")
+                .HasMaxLength(500)
+                .IsRequired(false);
+
             builder.Property(c => c.IsActive)
                 .HasColumnName("IsActive")
                 .IsRequired()

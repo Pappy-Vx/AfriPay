@@ -28,6 +28,11 @@ namespace AfriPay.CORE.Entities
 
         public string PasswordHash { get; private set; } = string.Empty;
 
+        /// <summary>
+        /// Hashed PIN used for authorizing transfers.
+        /// </summary>
+        public string TransferPinHash { get; private set; } = string.Empty;
+
         public UserTag? UserTag { get; private set; }
         public DateTime? UserTagSetAt { get; private set; }
 
@@ -310,6 +315,18 @@ namespace AfriPay.CORE.Entities
             PasswordHash = passwordHash;
         }
 
+        /// <summary>
+        /// Sets or updates the hashed transfer PIN used for transfers.
+        /// </summary>
+        /// <param name="pinHash">Hashed PIN value.</param>
+        public void SetTransferPin(string pinHash)
+        {
+            if (string.IsNullOrWhiteSpace(pinHash))
+                throw new ArgumentException("PIN hash cannot be empty", nameof(pinHash));
+
+            TransferPinHash = pinHash;
+            UpdatedAt = DateTime.UtcNow;
+        }
 
         /// <summary>
         /// Deactivate the customer account

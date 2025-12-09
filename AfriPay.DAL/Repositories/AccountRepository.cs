@@ -22,6 +22,7 @@ public class AccountRepository : IAccountRepository
         public async Task<Account?> GetByIdAsync(AccountId accountId, CancellationToken cancellationToken = default)
         {
             return await _context.Accounts
+                .AsTracking() // Explicitly enable tracking for write operations
                 .Include(a => a.Customer)
                 .FirstOrDefaultAsync(a => a.AccountId == accountId, cancellationToken);
         }
@@ -29,6 +30,7 @@ public class AccountRepository : IAccountRepository
         {
             var accNum = AccountNumber.Create(accountNumber);
             return await _context.Accounts
+                .AsTracking() // Explicitly enable tracking for write operations
                 .Include(a => a.Customer)
                 .FirstOrDefaultAsync(a => a.AccountNumber == accNum, cancellationToken);
         }

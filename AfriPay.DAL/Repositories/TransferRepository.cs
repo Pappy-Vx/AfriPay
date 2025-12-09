@@ -18,6 +18,7 @@ public class TransferRepository : ITransferRepository
     public async Task<Transfer?> GetByIdAsync(TransferId id, CancellationToken cancellationToken = default)
     {
         return await _context.Transfers
+            .AsTracking() // Explicitly enable tracking for write operations
             .FirstOrDefaultAsync(t => t.Id == id, cancellationToken);
     }
 

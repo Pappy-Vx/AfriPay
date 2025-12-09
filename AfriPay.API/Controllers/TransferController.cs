@@ -56,7 +56,7 @@ namespace AfriPay.API.Controllers
         /// - DestinationUserTag: The user tag of the destination (optional if DestinationAccountId is provided, e.g., "Kwame").
         /// - Amount: The transfer amount (required, decimal, must be positive).
         /// - Description: A description or narration for the transfer (optional, string).
-        /// - Password: The customer's transaction password, required for additional security.
+        /// - Pin: The customer's transfer PIN, required for additional security.
         /// - IdempotencyKey: A unique key to prevent duplicate transfers (optional, string).
         ///
         /// **Validation Notes:**
@@ -75,7 +75,7 @@ namespace AfriPay.API.Controllers
         ///   "destinationUserTag": "Kwame",
         ///   "amount": 8000,
         ///   "description": "paid kwame fees",
-        ///   "password": "Password123",
+        ///   "pin": "1234",
         ///   "idempotencyKey": "key-3"
         /// }
         /// ```
@@ -128,7 +128,7 @@ namespace AfriPay.API.Controllers
                 request.DestinationUserTag,
                 request.Amount,
                 request.Description,
-                request.Password,
+                request.Pin,
                 request.IdempotencyKey
             );
             var result = await _mediator.Send(command, cancellationToken);
@@ -382,10 +382,11 @@ namespace AfriPay.API.Controllers
         public string? DestinationUserTag { get; set; }
         public decimal Amount { get; set; }
         public string? Description { get; set; }
-        [Required(ErrorMessage = "Password is required")]
-        [MinLength(8, ErrorMessage = "Password must be at least 8 characters")]
-        [SwaggerSchema(Description = "Customer transaction password used to authorize the transfer.", Format = "password")]
-        public string Password { get; set; } = string.Empty;
+        [Required(ErrorMessage = "PIN is required")]
+        [MinLength(4, ErrorMessage = "PIN must be at least 4 characters")]
+        [MaxLength(12, ErrorMessage = "PIN cannot exceed 12 characters")]
+        [SwaggerSchema(Description = "Customer transfer PIN used to authorize the transfer.", Format = "password")]
+        public string Pin { get; set; } = string.Empty;
         public string? IdempotencyKey { get; set; }
     }
 }

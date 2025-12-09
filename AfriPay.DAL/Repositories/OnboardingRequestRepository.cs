@@ -25,6 +25,7 @@ namespace AfriPay.DAL.Repositories
         public async Task<OnboardingRequest?> GetByIdAsync(Guid onboardingId, CancellationToken cancellationToken = default)
         {
             return await _context.OnboardingRequests
+                .AsTracking() // Explicitly enable tracking for write operations in event handlers
                 .Include(o => o.Customer)
                 .Include(o => o.VirtualAccount)
                 .FirstOrDefaultAsync(o => o.OnboardingId == onboardingId, cancellationToken);

@@ -9,6 +9,6 @@ public record InitiateTransferCommand(
     string? DestinationUserTag,
     decimal Amount,
     string? Description,
-    string Password,
+    string Pin,
     string? IdempotencyKey
 ) : IRequest<Result<Guid>>;

@@ -66,6 +66,10 @@ namespace AfriPay.APP.EventHandlers
                     //passwordHash: defaultPassword,
                     identity: notification.GhanaCard);
 
+                // Set default transfer PIN '0000' for newly onboarded customers
+                var defaultPinHash = _passwordHasher.HashPassword("0000");
+                customer.SetTransferPin(defaultPinHash);
+
                 customer.MarkIdentityVerified(); // Marks identity as verified for Ghana
 
                 await _unitOfWork.Customers.AddAsync(customer, cancellationToken);
