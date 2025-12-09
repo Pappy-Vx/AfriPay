@@ -19,7 +19,7 @@ jobs:
       uses: azure/cli@v2
       with:
         inlineScript: |
-          az cr build \
+          az acr build \
             --registry ${{ secrets.ACR_NAME }} \
             --image afripay-api:latest \
             .
