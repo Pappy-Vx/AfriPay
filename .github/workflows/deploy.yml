@@ -20,28 +20,7 @@ jobs:
       run: |
         docker build -t ${{ secrets.ACR_LOGIN_SERVER }}/afripay-api:latest .
 
-   # TEST DATABASE CONNECTIVITY BEFORE DEPLOYING
-    - name: Test Database Connectivity
-      run: |
-        echo "Extracting DB parameters from connection string..."
-
-        CONNECTION_STRING="${{ secrets.ConnectionStrings__DefaultConnection }}"
-
-        DB_SERVER=$(echo $CONNECTION_STRING | sed -n 's/.*Server=tcp:\([^,]*\).*/\1/p')
-        DB_USER=$(echo $CONNECTION_STRING | sed -n 's/.*User ID=\([^;]*\).*/\1/p')
-        DB_PASSWORD=$(echo $CONNECTION_STRING | sed -n 's/.*Password=\([^;]*\).*/\1/p')
-
-        echo "Testing database connectivity to $DB_SERVER ..."
-
-        docker run --rm mcr.microsoft.com/mssql-tools \
-          /opt/mssql-tools/bin/sqlcmd \
-          -S "$DB_SERVER,1433" \
-          -U "$DB_USER" \
-          -P "$DB_PASSWORD" \
-          -Q "SELECT 1"
-
-        echo "Database connection successful."
-
+   
     - name: Login to Azure Container Registry
       run: |
         echo ${{ secrets.ACR_PASSWORD }} | docker login ${{ secrets.ACR_LOGIN_SERVER }} -u ${{ secrets.ACR_USERNAME }} --password-stdin
@@ -56,3 +35,19 @@ jobs:
           --name ${{ secrets.CONTAINERAPPS_NAME }} \
           --resource-group ${{ secrets.RESOURCE_GROUP }} \
           --image ${{ secrets.ACR_LOGIN_SERVER }}/afripay-api:latest
+
+# Post-deploy: Test DB connectivity from inside the container
+    - name: Test Database Connectivity in Container
+      run: |
+        echo "Checking DB connection inside the deployed container..."
+        DB_CONNECTION_STRING="${{ secrets.ConnectionStrings__DefaultConnection }}"
+
+        # Run a temporary command inside the Azure Container App
+        az containerapp exec \
+          --name ${{ secrets.CONTAINERAPPS_NAME }} \
+          --resource-group ${{ secrets.RESOURCE_GROUP }} \
+          --container afripay-api \
+          --command "dotnet ef database update --connection \"$DB_CONNECTION_STRING\" --verbose" || exit 1
+
+        echo "✅ Database connection successful."
+
