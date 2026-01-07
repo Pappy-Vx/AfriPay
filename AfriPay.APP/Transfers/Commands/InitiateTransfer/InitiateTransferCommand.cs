@@ -3,6 +3,7 @@ using MediatR;
 
 namespace AfriPay.APP.Transfers.Commands.InitiateTransfer;
 
+
 public record InitiateTransferCommand(
     Guid SourceAccountId,
     Guid DestinationAccountId,
